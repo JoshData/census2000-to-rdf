@@ -1,0 +1,68 @@
+diff -ru table_layouts_source/sf1/SF113.Sas table_layouts/sf1/SF113.Sas
+--- table_layouts_source/sf1/SF113.Sas	2002-11-01 12:43:52.000000000 -0500
++++ table_layouts/sf1/SF113.Sas	2006-10-08 12:59:19.000000000 -0400
+@@ -18,7 +18,7 @@
+          CIFSN='Characteristic Iteration File Sequence Number'
+          LOGRECNO='Logical Record Number'  
+ 
+-         /*NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE OR IN COMBINATION WITH ONE OR MORE OTHER RACES, AND WITH ONE OR MORE NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER CATEGORIES FOR SELECTED GROUPS
++         /*NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE OR IN COMBINATION WITH ONE OR MORE OTHER RACES, AND WITH ONE OR MORE NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER CATEGORIES FOR SELECTED GROUPS [0000]*/
+          /*Universe: Total Native Hawaiian and Other Pacific Islander categories tallied and people with no specific Native Hawaiian and Other Pacific Islander category reported*/
+      
+          PCT010001='Total Native Hawaiian and Other Pacific Islander categories tallied:'
+diff -ru table_layouts_source/sf3/SF308.SAS table_layouts/sf3/SF308.SAS
+--- table_layouts_source/sf3/SF308.SAS	2002-11-01 11:42:36.000000000 -0500
++++ table_layouts/sf3/SF308.SAS	2006-10-09 10:23:15.000000000 -0400
+@@ -179,7 +179,7 @@
+          P103002='      Living with own grandchildren under 18 years:'
+          P103003='        Grandparent responsible for own grandchildren under 18 years:'
+      
+-         /*          Length of time --*/
++#         /*          Length of time --*/
+ 
+          P103004='            Imputed'
+          P103005='            Not imputed'
+diff -ru table_layouts_source/sf3/SF319.SAS table_layouts/sf3/SF319.SAS
+--- table_layouts_source/sf3/SF319.SAS	2002-11-01 11:53:14.000000000 -0500
++++ table_layouts/sf3/SF319.SAS	2006-10-09 10:23:03.000000000 -0400
+@@ -283,14 +283,14 @@
+          PCT007162='          75 to 84 years'
+          PCT007163='          85 years and over'
+      
+-         /*GRANDPARENTS LIVING WITH OWN GRANDCHILDREN UNDER 18 YEARS BY RESPONSIBILITY FOR OWN GRANDCHILDREN BY LENGTH OF TIME RESPONSIBLE FOR GRANDCHILDREN FOR THE POPULATION 30 YEARS AND OVER IN                                                    
++         /*GRANDPARENTS LIVING WITH OWN GRANDCHILDREN UNDER 18 YEARS BY RESPONSIBILITY FOR OWN GRANDCHILDREN BY LENGTH OF TIME RESPONSIBLE FOR GRANDCHILDREN FOR THE POPULATION 30 YEARS AND OVER IN  ... [000]*/
+          /*Universe:  Population 30 years and over in households*/
+ 
+          PCT008001='Total:'
+          PCT008002='      Living with own grandchildren under 18 years:'
+          PCT008003='        Grandparent responsible for own grandchildren under 18 years:'
+      
+-         /*          Length of time --*/
++#         /*          Length of time --*/
+ 
+          PCT008004='            Less than 6 months'
+          PCT008005='            6 to 11 months'
+diff -ru table_layouts_source/sf3/SF368.SAS table_layouts/sf3/SF368.SAS
+--- table_layouts_source/sf3/SF368.SAS	2002-11-01 12:30:48.000000000 -0500
++++ table_layouts/sf3/SF368.SAS	2006-10-09 10:11:24.000000000 -0400
+@@ -139,7 +139,7 @@
+ 
+          HCT017001='Total:'
+      
+-         /*      Household income in 1999 --*/
++#         /*      Household income in 1999 --*/
+ 
+          HCT017002='        Less than $10,000:'
+          HCT017003='          Value less than $10,000'
+diff -ru table_layouts_source/sf3/SF369.SAS table_layouts/sf3/SF369.SAS
+--- table_layouts_source/sf3/SF369.SAS	2002-11-01 12:31:30.000000000 -0500
++++ table_layouts/sf3/SF369.SAS	2006-10-09 10:18:58.000000000 -0400
+@@ -23,7 +23,7 @@
+ 
+          HCT018001='Total:'
+      
+-         /*      Household income in 1999 --*/
++#         /*      Household income in 1999 --*/
+ 
+          HCT018002='        Less than $10,000:'
+          HCT018003='          With cash rent:'
