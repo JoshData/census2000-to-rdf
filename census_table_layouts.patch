@@ -10,6 +10,34 @@ diff -ru table_layouts_source/sf1/SF113.Sas table_layouts/sf1/SF113.Sas
           /*Universe: Total Native Hawaiian and Other Pacific Islander categories tallied and people with no specific Native Hawaiian and Other Pacific Islander category reported*/
       
           PCT010001='Total Native Hawaiian and Other Pacific Islander categories tallied:'
+diff -ru table_layouts_source/sf3/SF301.SAS table_layouts/sf3/SF301.SAS
+--- table_layouts_source/sf3/SF301.SAS	2002-11-01 11:35:18.000000000 -0500
++++ table_layouts/sf3/SF301.SAS	2006-10-31 06:40:55.000000000 -0500
+@@ -23,15 +23,15 @@
+ 
+          P001001='Total'
+      
+-         /*UNWEIGHTED SAMPLE COUNT OF THE POPULATION [1]*/         
+-         /*Universe:  Total population*/
+-
+-         P002001='Total'
+-     
+-         /*100-PERCENT COUNT OF THE POPULATION [1]*/     
+-         /*Universe:  Total population*/
+-
+-         P003001='Total'
++#         /*UNWEIGHTED SAMPLE COUNT OF THE POPULATION [1]*/         
++#         /*Universe:  Total population*/
++#
++#         P002001='Total'
++     
++#         /*100-PERCENT COUNT OF THE POPULATION [1]*/     
++#         /*Universe:  Total population*/
++#
++#         P003001='Total'
+      
+          /*PERCENT OF THE POPULATION IN SAMPLE [1]*/      
+          /*Universe:  Total population*/
 diff -ru table_layouts_source/sf3/SF308.SAS table_layouts/sf3/SF308.SAS
 --- table_layouts_source/sf3/SF308.SAS	2002-11-01 11:42:36.000000000 -0500
 +++ table_layouts/sf3/SF308.SAS	2006-10-09 10:23:15.000000000 -0400
