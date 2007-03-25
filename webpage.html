@@ -1,0 +1,320 @@
+<html>
+	<head>
+		<title>The 2000 U.S. Census: From Raw Format to RDF</title>
+		<style>
+			body { padding: 1em; max-width: 50em; border-right: 1px solid #EEEEEE; background-color: #FBFBFB; font-size: 85%; }
+
+			li { margin-bottom: .5em }
+			div.p { text-align: justify; line-height: 140%; margin-bottom: 1em }
+			pre.code { border: 1px solid #AAAAAA; background-color: #F5F5FF; margin: 1em; padding: .33em; }
+			img.fig { border: 1px solid #999999; margin: 1em; }
+			div.sidenote { float: right; width: 18em; text-align: left; font-size: 85%; margin: 1em 0em 1em 1.5em; padding: .3em; border: 1px solid #999999; background-color: #F5F5FF; line-height: 135%; } 
+
+			code { font-size: 105%; letter-spacing: .1px; background-color: #E5E5FF; padding: 2px }
+		</style>
+	</head>
+	<body>
+
+<h1 style="max-width: 15em">The 2000 U.S. Census: From Raw Format to RDF</h1>
+
+<div class="p"><a href="http://razor.occams.info">Joshua Tauberer</a></div>
+<div class="p">January 15, 2007 -- DRAFT</div>
+
+<h2>Overview</h2>
+
+<div class="p">For some time now I've been interested in getting large amounts of 
+existing data into <a href="http://www.rdfabout.com">RDF</a> so that 
+databases once isolated by existing in vastly different data formats can 
+start to be easily meshed.  My first foray into this was getting
+<a href="http://www.govtrack.us/sparql.xpd">data on the U.S. Congress into RDF</a>,
+and since our people in Congress represent geographic regions, a logical
+step forward from there was to mesh that data with the
+<a href="http://www.census.gov">2000 U.S. Census</a>.</div>
+
+<div class="p">The U.S. Census data is 
+provided by the Census in a structured format (with an enormous amount 
+of documentation, no less) and yields on the order of 700 million RDF 
+triples.  So the task was a hefty one, though fairly straight-forward, 
+and this document explains what I did from start to finish &mdash; first 
+transforming the Census data into Notation 3 (with a Perl script), and 
+then loading it into a MySQL database and serving it via SPARQL (using 
+my own <a href="http://razor.occams.info/code/semweb">C# library for 
+RDF</a>).</div>
+
+<h4>Try it out...</h4>
+
+<ul>
+	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: Basic geographic data for the U.S., the states, counties, and what I call towns and villages.  2.5 MB; 515,309 triples in N3 format.  See <a href="#geo">example data</a> below.</li>
+	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census.pl">census.pl</a>: Perl script to generate &gt;700M triples of detailed census data from the Census's published data files. The script contains documentation on where to get the data files from the Census and how to run it.  If you want to generate the detailed data, you'll also need <a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census_table_layouts.patch">census_table_layouts.patch</a> which patches some auxiliary files that you'll need to get from the Census.</li>
+	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/link-geonames.pl">link-geonames.pl</a>: Perl script to establish owl:sameAs links from this data set to the <a href="http://www.geonames.org/">Geonames</a> data set.</li>
+</ul>
+
+<h2>About the Census Data</h2>
+
+<div class="p">The Census data comprises population statistics at various geographic 
+levels, from the U.S. as a whole, down through states, counties,
+sub-counties (roughly, cities and 
+incorporated towns), so-called "census data 
+places" ("CDP"s, what I would call a named "village", but might 
+correspond better with the colloquial use of the word town),
+and even deeper levels of granularity.
+
+<div class="sidenote">Side notes: The data set contains around 3,200 counties, 36,000 
+"towns", and 16,000 "villages".  There are fewer CDPs than towns here 
+because I exclude CDPs that represent 100% of the town they are 
+contained in. A big chunk of the 25k stats per region is iterations of 
+the same statistics but for race-based subsets of the total population 
+of each region, and since I don't think that's so interesting, and I 
+wanted to keep the data size managable (700M is large enough, thank 
+you), I omit those stats, leaving around 11 thousand per region.</div>
+
+The statistics 
+themselves contain total population counts, counts by age, sex, and 
+race, information on commuting time to work, mean income, latitude and 
+longitude of the region, etc.  In fact, for <i>each</i> of the around 
+55,000 geographic regions from country down to CDP, 25 
+<i>thousand</i> statistics are reported!  That's a lot.</div>
+
+<div class="p">The thousands of statistics are, fortunately for the human user,
+structured.  The stats break down into tables, and tables within tables,
+etc.  For instance, population by sex and age (i.e. how many individuals
+are male and 24 years old) is a two-level table.  First the total population
+is broken down by sex (total male, female), and then each of those parts
+are further broken down by age.  It is not uncommon to see tables four
+or five levels deep.  And since the statistics break things down into
+smaller and smaller categories, around 25% of all of the numbers reported
+over all of the regions are just zero.</div>
+
+<div class="p">Further, the stats break down into what the Census calls "universes."
+For a region, one universe is "total population", which means that the
+statistics represent counts of people out of all of the people in the
+region.  Another universe is "households", which means the numbers
+are not counting people but households, out of all of the households
+in the region.  Other universes break down those two, such as "total
+population 18 years and over."</div>
+
+<div class="p">And, lastly there are some statistics which are not counts but
+are instead aggregates or medians, such as the median income out
+of a subset of the population within some region.</div>
+
+<div class="p">The fact that the statistics are structured into 
+hierarchical tables makes the relational database model already 
+problematic for representing the data &mdash; unless you want a single 
+table with thousands of columns, or otherwise several hundred tables, but in 
+either case the hierarchy is not explicitly modeled.  An XML-ish 
+database might work well, but the flexibility of a native RDF store for 
+encoding a graph seems like a fair enough fit.</div>
+
+<h2>Modeling the Census Data in RDF</h2>
+
+<div class="p">The Census data could have been modeled in RDF any number of ways,
+and I chose one way that seemed to work out all right.  I wanted
+the notion of a hierarchy of tables to carry over into RDF.  That is,
+there should be nodes in the RDF graph representing a table, i.e. a
+subset of the population, out of which subtables may slice the population
+into smaller groups.  Each slice of the world is represented by a RDF predicate.
+Tables as such are represented by blank (anonymous) nodes.</div>
+
+<div class="p">Okay, to take an example: Each region starts off with a node
+representing the region, i.e. <code>&lt;tag:govshare.info,2005:data/us&gt;</code>
+for the United States as a whole.  The first way the Census splices
+the world as it pertains to that region is by dividing the world into
+universes, which as I mentioned above are "total population", "households",
+etc.  In the RDF model, predicates representing each universe are
+applied to the region entity and land on a bnode representing a table
+that will further divide that universe.  If the "total population" universe
+is then subdivided into "male" versus "female", predicates leave the first
+bnode and land on two new bnodes representing the males out of the total
+population and the females of the total population.  Further subdivisions,
+such as by age, leave these bnodes and may land on new bnodes that may be
+subdivided further.</div>
+
+<div class="p">There is more to explain, below, but here is a graphical representation of
+what is going on.  The black-colored nodes and edges are the nodes and 
+triples I've discussed so far.</div>
+
+<img class="fig" src="webpage_img/structure.png" alt="Structure of the RDF model."/>
+
+<div class="p">As the figure shows, each Census predicate (in black) takes you from 
+a table bnode to either a) another table or b) a literal numeric value 
+(in blue).  When it takes you to a numeric value, you've reached the end 
+of the line and it tells you how many people (housholds, etc.) fall into 
+
+<div class="sidenote">You may notice in the figure that there are two <code>population</code>
+edges leaving the Region node terminating on bnodes that repeat the
+same total population count (120,000) in their <code>rdf:value</code>s.
+This redundancy is there in order to model each table in the Census data
+as independent bnodes.  That is, if there were only one <code>population</code>
+predicate leaving Region, then the male/female division and the inHousehold/inGroupQuarters
+division would be collapsed.  The benefit of keeping them apart is that
+the model is explicit about which categories are mutually exclusive
+and which fall into natural groupings, which applications may find useful.</div>
+
+all of the categories that brought you to that value.  So if you follow 
+the path <code>Region &gt; population &gt; female &gt; age10-19</code>, you end on a 
+numeric value that tells you how many women aged 10-19 are in that 
+region.  (If you followed <code>Region &gt; households &gt; 
+nonFamilyHouseholds</code> you would get the number of <i>households</i>, not 
+people, that are nonFamilyHouseHolds.  To know what a "non-family 
+household" is, you would have to consult the PDFs published by the 
+Census.)  Now, what makes this a little bit weird is that we may also 
+want to know how many women there are total.  If we followed the path 
+only part way (<code>Region &gt; population &gt; female</code>), you might 
+<i>want</i> a literal numeric value here, but we can't do that since 
+we've already put a bnode here so we can branch further.  Instead, we 
+branch off a <code>rdf:value</code> predicate to a literal value that 
+has the total number for that category (the edges and literals in red).  
+So if you want the total number of women, you follow <code>Region &gt; 
+population &gt; female &gt; rdf:value</code>.  (This is, yes, a little bit 
+awkward since you can't know whether you need that extra 
+<code>rdf:value</code> or not without looking at the structure of the 
+graph.)</div>
+
+<div class="p">Besides the graph above, there is also a hierarchy established
+between regions themselves using <code>dcterms:isPartOf</code>, and
+several other features including actual names and latitute/longitude
+are represented as predicates directly off of the Region node.</div>
+
+<h2>Converting the Census Raw Data Files to Notation 3</h2>
+
+<div class="p">The Census publishes their data in text-based data files (compressed,
+since even compressed it is several gigabytes in all).  I chose
+to first convert them to Notation 3 files on disk, and then to load
+those files into a triple store.</div>
+
+<a name="geo"><h4>Geographic Data</h4></a>
+
+<div class="p">Basic geographic data, including the hierarchical relationship between
+the regions, latitude/longitude, and names, comes from the file
+<a href="http://www2.census.gov/census_2000/datasets/Summary_File_1/0Final_National/usgeo_uf1.zip">usgeo_uf1.txt</a>.
+It's a fixed-column-width text file, which is described <a href="http://www.census.gov/support/SF1ASCII.html">here</a>.
+Besides some standard schemas, I use two of my own: <a href="http://www.govtrack.us/share/census.rdf">Census</a> and <a href="http://www.govtrack.us/share/usgovt.rdf">USGovt</a>. Below is the segment of the N3 version for New York.</div> 
+
+<pre class="code">
+@prefix rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt; .
+@prefix dc: &lt;http://purl.org/dc/elements/1.1/&gt; .
+@prefix dcterms: &lt;http://purl.org/dc/terms/&gt; .
+@prefix geo: &lt;http://www.w3.org/2003/01/geo/wgs84_pos#&gt; .
+@prefix census: &lt;tag:govshare.info,2005:rdf/census/&gt; .
+@prefix usgovt: &lt;tag:govshare.info,2005:rdf/usgovt/&gt; .
+
+&lt;tag:govshare.info,2005:data/us/ny&gt; 
+   rdf:type usgovt:State ;
+   usgovt:censusStateCode "21" ;
+   usgovt:fipsStateCode "36" ;
+   usgovt:uspsStateCode "NY" ;
+   dc:title "New York" ;
+   dcterms:isPartOf &lt;tag:govshare.info,2005:data/us&gt; ;
+   geo:lat "42.155127" ;
+   geo:long "-75.164667" ;
+   census:population "18976457" ;
+   census:households "7679307" ;
+   census:landArea "122283145776 m^2" ;
+   census:waterArea "19016249880 m^2" .
+</pre>
+
+<div class="p">You may notice the landArea and waterArea values are given in a strange half-number/half-unit literal value.  I didn't know what to do since there isn't much consensus on how to indicate the units of physical quantities in RDF.  (See the thread "ontology for units of measurement and/or physical quantities" at <a href="http://lists.w3.org/Archives/Public/semantic-web/2006Sep/0053.html">the semantic-web mail list archives</a> and <a href="http://lists.w3.org/Archives/Public/semantic-web/2006Oct/0064.html">my own suggestion</a> that came later on.)</div>
+
+<ul>
+	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: 
+	2.5 MB; 515,309 triples.</li>
+</ul>
+
+
+
+<h4>Population Tables</h4>
+
+<div class="p">The tables-within-tables data was by far much more difficult to get into N3 than the geographic data, which is just a flat table with a few fields per region.  The "summary files" (as they're called) come from <a href="http://www.census.gov/support/SF1ASCII.html">here</a> (documentation is there too).  For instance, the file SF1_all_0Final_National.zip (one gigabyte) contains about one-third of the census data.  In that zip file are zip files for each state, and in that are comma-delimited text files with several hundred fields per file.</div> 
+
+<div class="p">The comma-delimited files are described in a set of metadata files for the SAS statistics program.  Those files list the order of the fields within the data files and give each field a short description.  In addition, whitespace indentations in the descriptions, which presumably are ignored by SAS, were crucial for establishing the hierarchical nature of the field.</div>
+
+<div class="p">I use the SAS table layout files to create an N3 template for each region which is filled in with the URI of the region and the some 11,000 values per region.  The SAS file looks like this, with each line representing a field in the data file:</div>
+
+<pre class="code">
+P001001='Total'
+
+/*URBAN AND RURAL [6]*/ 
+/*Universe: Total population*/
+
+P002001='Total:'
+P002002='      Urban:'
+P002003='        Inside urbanized areas'
+P002004='        Inside urban clusters'
+P002005='      Rural'
+
+/*RACE [71]*/
+/*Universe: Total population*/
+
+P003001='Total:'
+P003002='      Population of one race:'
+P003003='        White alone'
+P003004='        Black or African American alone'
+</pre>
+
+<div class="p">The beginning of the output for the United States looks like this:</div>
+
+<pre class="code">
+@prefix rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt; .
+@prefix dc: &lt;http://purl.org/dc/elements/1.1/&gt; .
+@prefix : &lt;tag:govshare.info,2005:rdf/census/details/&gt; .
+
+&lt;tag:govshare.info,2005:data/us&gt;
+  :totalPopulation 281421906 ;     # P001001
+  :totalPopulation [
+     dc:title "URBAN AND RURAL (P002001)";
+     rdf:value 281421906 ;   # P002001
+     :urban [
+        rdf:value 222360539 ;  # P002002
+        :insideUrbanizedAreas 192323824 ;   # P002003
+        :insideUrbanClusters 30036715 ;     # P002004
+        ] ;
+     :rural 59061367 ;   # P002005
+     ] ;
+  :totalPopulation [
+     dc:title "RACE (P003001)";
+     rdf:value 281421906 ;   # P003001
+     :populationOfOneRace [
+        rdf:value 274595678 ;    # P003002
+        :whiteAlone 211460626 ;     # P003003
+        :blackOrAfricanAmericanAlone 34658190 ;     # P003004
+        :americanIndianAndAlaskaNativeAlone 2475956 ;   # P003005
+  ...
+</pre>
+
+<h2>Loading the Data into a Triple Store</h2>
+
+<div class="p">The conversion process to Notation 3 yielded 515,309 triples for the geographic data and 716,779,251 triples for the population data (716 million for the country, 
+states, counties, towns, and villages; 5 million for congressional districts).</div>
+
+<div class="p">I used my own <a href="http://razor.occams.info/code/semweb">SemWeb Library for C#</a> to 
+load the triples into a MySQL database.  
+Loading it took ____ (2 days and 6 hours to load the 
+triples with several indexes turned off and then ___ hours to build 
+indexes over the table of statements, which overall is about ___ 
+statements per second).  The database is ___ GB large (14GB data and
+____ for indexes). Within my library there is a 
+command-line tool for loading data into a database. I used this to load 
+the geographic data:</div>
+
+<pre class="code">
+mono rdfstorage.exe -in n3 \
+	-out "mysql:censusgeo:Database=rdf;User name=govtrack" --clear  \
+   states.n3 counties.n3 towns.n3 villages.n3 \
+   congressional_districts_109.n3 congressional_districts_110.n3
+</pre>
+
+<div class="p">Because of the enormous size of the remaining data, those 
+triples were in GZip'ed N3 files, and so one has to be 
+a little bit more creative to load that into a database without 
+uncompressing them first:</div>
+
+<pre class="code">
+cat sumfile*.n3.gz | gunzip | \
+	mono rdfstorage.exe - -in n3 --clear \
+		-out "mysql:censustables:Database=rdf;User name=govtrack"
+</pre>
+
+<div class="p">[note about SemWeb's MySQL table structure</div>
+
+	</body>
+</html>

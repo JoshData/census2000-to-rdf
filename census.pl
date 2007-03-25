@@ -78,34 +78,42 @@
 # You can now run this script with Perl.  To process just the
 # geographic data, which takes a few minutes, run:
 #   perl census.pl GEO
-# That will create four .n3 files in a new 'rdf' subdirectory (~20MB).
+# That will create four .n3 files in a new 'rdf' subdirectory (~20MB)
+# called states.n3 (U.S. and states), counties.n3, towns.n3
+# (i.e. "county-sub" records) and villages.n3 ("census data places").
 #
 # To process the Summary File data, which takes a lot longer, run:
 #   perl census.pl SUMFILES
-# Various RDF files will be piped through gzip and written into a
-# 'rdf' subdirectory, which will be created if it doesn't already
-# exist.  You'll see some error messages from gzip along the way
-# about not finding files, but that's OK -- that's because SF3 is
-# split between part1 and part2 files.
+# Various RDF files will be piped through gzip and saved into a
+# 'rdf' subdirectory.
 # The output files total around 1 GB and have in the neighborhood
 # of 500 million RDF triples.  But since the data is written out
 # to many files, you can pick and choose what level of detail
-# (state/county/town/village) or what set of tables you want to
-# process further.
+# (U.S. & states: 680k triples, counties: 41M triples, towns:
+# 465M triples, villages: XXXX triples) or what set of data tables
+# you want to process further.
+# You'll see some error messages from gzip along the way
+# about not finding files, but that's OK -- that's because SF3 is
+# split between part1 and part2 files and the script doesn't know how.
 #
 # To process the congressional district files, run:
 #   perl census.pl DISTRICTS
-# You'll get more gzip'ed n3 files in the rdf directory, totalling
-# about 25MB and 5 million triples (per session of Congress).
+# You'll get congressional_districts_XXX.n3, which has basic geographic
+# data and metadata about each district, akin to the "GEO" output above,
+# and congressional_districts_XXX.sf[13].n3.gz files which have the
+# complete Summary File 1 and 3 records for each district (akin to the
+# "SUMFILES" output above).  The data totals about 25MB and 5 million
+# triples (per session of Congress).
 # -------------------------------------------------------------------
 
 if ($ARGV[0] eq 'GEO') {
 	ProcessGeoTables("usgeo_uf1.txt", 'usgeo');
 
-} elsif ($ARGV[0] eq 'SUMFILES') {
-	ProcessSummaryFile('SF1_all_0Final_National', 1);
-	ProcessSummaryFile('SF3_all_0_National-part1', 3);
-	ProcessSummaryFile('SF3_all_0_National-part2', 3);
+} elsif ($ARGV[0] eq 'SUMFILES' || $ARGV[0] eq 'TEST') {
+	my $testing = ($ARGV[0] eq 'TEST');
+	ProcessSummaryFile('SF1_all_0Final_National', 1, $testing);
+	ProcessSummaryFile('SF3_all_0_National-part1', 3, $testing);
+	ProcessSummaryFile('SF3_all_0_National-part2', 3, $testing);
 
 } elsif ($ARGV[0] eq 'DISTRICTS') {
 	ProcessRedistrictingFile('sl500-in-sl010-us_h09', 109, 1);
@@ -128,11 +136,13 @@ if ($ARGV[0] eq 'GEO') {
 }
 
 sub ProcessSummaryFile {
-	my ($file, $n) = @_;
+	my ($file, $n, $testing) = @_;
 
 	if (!-e "$file.zip") { return; }
 
-	ProcessGeoTables("usgeo_uf$n.txt", $file =~ /^SF1/ ? 'geo' : undef);
+	if (!$testing) {
+		ProcessGeoTables("usgeo_uf$n.txt", $file =~ /^SF1/ ? 'geo' : undef);
+	}
 
 	my $tabledir = "table_layouts/sf$n";
 	opendir DIR, $tabledir;
@@ -157,6 +167,8 @@ sub ProcessGeoTables {
 	ND, 39 => OH, 40 => OK, 41 => OR, 42 => PA, 44 => RI, 45 => SC, 46 =>
 	SD, 47 => TN, 48 => TX, 49 => UT, 50 => VT, 51 => VA, 53 => WA, 54 =>
 	WV, 55 => WI, 56 => WY, 60 => AS, 66 => GU, 69 => MP, 72 => PR, 78 => VI); 
+
+	my %NONSTATES = (DC => 1, AS => 1, GU => 1, MP => 1, PR => 1, VI => 1);
 
 	my @FIELDS = split(/,/, "FILEID:6,STUSAB:2,SUMLEV:3,GEOCOMP:2,CHARITER:3,CIFSN:2,LOGRECNO:7,REGION:1,DIVISION:1,STATECE:2,STATE:2,COUNTY:3,COUNTYSC:2,COUSUB:5,COUSUBCC:2,COUSUBSC:2,PLACE:5,PLACECC:2,PLACEDC:1,PLACESC:2,TRACT:6,BLKGRP:1,BLOCK:4,IUC:2,CONCIT:5,CONCITCC:2,CONCITSC:2,AIANHH:4,AIANHHFP:5,AIANHHCC:2,AIHHTLI:1,AITSCE:3,AITS:5,AITSCC:2,ANRC:5,ANRCCC:2,MSACMSA:4,MASC:2,CMSA:2,MACCI:1,PMSA:4,NECMA:4,NECMACCI:1,NECMASC:2,EXI:1,UA:5,UASC:2,UATYPE:1,UR:1,CD106:2,CD108:2,CD109:2,CD110:2,SLDU:3,SLDL:3,VTD:6,VTDI:1,ZCTA3:3,ZCTA5:5,SUBMCD:5,SUBMCDCC:2,AREALAND:14,AREAWATR:14,NAME:90,FUNCSTAT:1,GCUNI:1,POP100:9,HU100:9,INTPLAT:9,INTPLON:10,LSADC:2,PARTFLAG:1,SDELEM:5,SDSEC:5,SDUNI:5,TAZ:6,UGA:5,PUMA5:5,PUMA1:5,RESERVE2:15,MACC:5,UACP:5,RESERVED:7");
 	my %FIELDSIZE;
@@ -231,6 +243,7 @@ EOF
 			$parent = $URI{US};
 			$uri = "$URI{US}/" . lc($CENSUSSTATES{0+$info{STATE}});
 			$isa = "usgovt:State";
+			if ($NONSTATES{$CENSUSSTATES{0+$info{STATE}}}) { $isa = "usgovt:Territory"; }
 			print lc($CENSUSSTATES{0+$info{STATE}}) . "...\n";
 		} elsif ($info{SUMLEV} eq "050") {
 			$file  = "COUNTY";
@@ -287,10 +300,10 @@ EOF
 		print $file "	usgovt:uspsStateCode \"$info{STATEUSPS}\" ;\n" if ($file2 eq "STATE");
 		print $file "	usgovt:fipsCountyCode \"$info{COUNTY}\" ;\n" if ($file2 eq "COUNTY");
 		print $file "	usgovt:fipsStateCountyCode \"$info{STATE}:$info{COUNTY}\" ;\n" if ($file2 eq "COUNTY");
-		print $file "	dc:title \"$info{NAME}\" ;\n" if ($file2 ne "US");
+		print $file "	dc:title \"$info{NAME}\" ;\n";
 		print $file "	dcterms:isPartOf <$parent> ;\n" if ($file2 ne "US");
-		print $file "	geo:lat \"$info{INTPLAT}\" ;\n" if ($file ne "STATE");
-		print $file "	geo:long \"$info{INTPLON}\" ;\n" if ($file ne "STATE");
+		print $file "	geo:lat \"$info{INTPLAT}\" ;\n";
+		print $file "	geo:long \"$info{INTPLON}\" ;\n";
 		print $file "	census:population \"$info{POP100}\" ;\n";
 		print $file "	census:households \"$info{HU100}\" ;\n";
 		print $file "	census:landArea \"$info{AREALAND} m^2\" ;\n";
