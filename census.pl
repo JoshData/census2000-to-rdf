@@ -129,7 +129,7 @@ if ($ARGV[0] eq 'GEO') {
 	ProcessSumFileTable($ARGV[1], $n, $ARGV[2]);
 } elsif ($ARGV[0] eq 'TESTLAYOUT') {
 	# usage: perl census.pl TESTLAYOUT table_layouts/sf#/___.sas
-	print ParseSumFileLayout($ARGV[1], 0);
+	print ParseSumFileLayout($ARGV[1]);
 
 } else {
 	print "You must specify a command.  Read the script for details\n.";
@@ -359,15 +359,20 @@ sub ProcessSumFileTable {
 	if ($layout !~ /sf(\d)(\d\d)\.sas$/i) { return; }
 	my $table = $2;
 	
-	my $template = ParseSumFileLayout($layout, $sf == 3);
+	my $template = ParseSumFileLayout($layout);
 	if ($template eq "") { return; }
 
 	print STDERR "Summary File $file Table $table\n";
 
+	my $predtype;
+	if ($sf == 1) { $predtype = "100pct"; }
+	elsif ($sf == 3) { $predtype == "samp"; }
+	else { die; }
+
 	my $namespaces = <<EOF;
 \@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 \@prefix dc: <http://purl.org/dc/elements/1.1/> .
-\@prefix : <tag:govshare.info,2005:rdf/census/details/> .
+\@prefix : <tag:govshare.info,2005:rdf/census/details/$predtype/> .
 EOF
 
 	my $firstline = 1;
@@ -458,7 +463,6 @@ sub ParseSumFileLayout {
 	# actual numbers can be filled in for each place later.
 
 	my $file = shift;
-	my $isSF3 = shift;
 
 	my $title;
 	my $universe;
