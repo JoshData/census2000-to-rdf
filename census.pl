@@ -129,7 +129,7 @@ if ($ARGV[0] eq 'GEO') {
 	ProcessSumFileTable($ARGV[1], $n, $ARGV[2]);
 } elsif ($ARGV[0] eq 'TESTLAYOUT') {
 	# usage: perl census.pl TESTLAYOUT table_layouts/sf#/___.sas
-	print ParseSumFileLayout($ARGV[1]);
+	print ParseSumFileLayout($ARGV[1], 0);
 
 } else {
 	print "You must specify a command.  Read the script for details\n.";
@@ -190,7 +190,8 @@ sub ProcessGeoTables {
 
 		if ($outputfile eq 'usgeo') {
 			%FILES = (STATE => 'states', COUNTY => 'counties',
-				COUNTYSUB => 'towns', COUNTYSUBPLACE => 'villages');
+				COUNTYSUB => 'towns', COUNTYSUBPLACE => 'villages',
+				ZCTA => 'zcta');
 		} else {
 			%FILES = (DISTS => $outputfile);
 			$append = '>';
@@ -238,6 +239,14 @@ EOF
 			$file  = "US";
 			$uri = "tag:govshare.info,2005:data/us";
 			$isa = "<tag:govshare.info,2005:rdf/politico/Country>";
+
+		} elsif ($info{SUMLEV} eq "860") {
+			$file  = "ZCTA";
+			$uri = "tag:govshare.info,2005:data/us/zcta/" . $info{ZCTA5};
+			$isa = "census:ZCTA";
+			$parent = "tag:govshare.info,2005:data/us";
+			$info{NAME} = "ZCTA " . $info{ZCTA5};
+
 		} elsif ($info{SUMLEV} eq "040") {
 			$file  = "STATE";
 			$parent = $URI{US};
@@ -350,7 +359,7 @@ sub ProcessSumFileTable {
 	if ($layout !~ /sf(\d)(\d\d)\.sas$/i) { return; }
 	my $table = $2;
 	
-	my $template = ParseSumFileLayout($layout);
+	my $template = ParseSumFileLayout($layout, $sf == 3);
 	if ($template eq "") { return; }
 
 	print STDERR "Summary File $file Table $table\n";
@@ -382,11 +391,13 @@ EOF
 					open COUNTY, "| gzip > rdf/sumfile$sf-$table-counties.n3.gz";
 					open COUNTYSUB, "| gzip > rdf/sumfile$sf-$table-towns.n3.gz";
 					open COUNTYSUBPLACE, "| gzip > rdf/sumfile$sf-$table-villages.n3.gz";
+					open ZCTA, "| gzip > rdf/sumfile$sf-$table-zcta.n3.gz";
 
 					print STATE $namespaces;
 					print COUNTY $namespaces;
 					print COUNTYSUB $namespaces;
 					print COUNTYSUBPLACE $namespaces;
+					print ZCTA $namespaces;
 				} else {
 					print DISTS2 $namespaces;
 				}
@@ -436,6 +447,7 @@ EOF
 			close COUNTY;
 			close COUNTYSUB;
 			close COUNTYSUBPLACE;
+			close ZCTA;
 		}
 	}
 }
@@ -446,6 +458,7 @@ sub ParseSumFileLayout {
 	# actual numbers can be filled in for each place later.
 
 	my $file = shift;
+	my $isSF3 = shift;
 
 	my $title;
 	my $universe;
