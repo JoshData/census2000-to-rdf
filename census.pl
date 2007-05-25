@@ -104,22 +104,32 @@
 # complete Summary File 1 and 3 records for each district (akin to the
 # "SUMFILES" output above).  The data totals about 25MB and 5 million
 # triples (per session of Congress).
+#
+# To get some schema information about the predicates used in the
+# detailed (SUMFILES, DISTRICTS) data files, run:
+#   perl census.pl SCHEMA
+# which will output schema.n3 in the rdf directory.
 # -------------------------------------------------------------------
 
 if ($ARGV[0] eq 'GEO') {
 	ProcessGeoTables("usgeo_uf1.txt", 'usgeo');
 
 } elsif ($ARGV[0] eq 'SUMFILES' || $ARGV[0] eq 'TEST') {
+	# Second argument can be FINISH to skip tables already
+	# processed -- skipping files that already exist.
 	my $testing = ($ARGV[0] eq 'TEST');
-	ProcessSummaryFile('SF1_all_0Final_National', 1, $testing);
-	ProcessSummaryFile('SF3_all_0_National-part1', 3, $testing);
-	ProcessSummaryFile('SF3_all_0_National-part2', 3, $testing);
+	ProcessSummaryFile('SF1_all_0Final_National', 1, $testing, $ARGV[1] eq 'FINISH');
+	ProcessSummaryFile('SF3_all_0_National-part1', 3, $testing, $ARGV[1] eq 'FINISH');
+	ProcessSummaryFile('SF3_all_0_National-part2', 3, $testing, $ARGV[1] eq 'FINISH');
 
 } elsif ($ARGV[0] eq 'DISTRICTS') {
 	ProcessRedistrictingFile('sl500-in-sl010-us_h09', 109, 1);
 	ProcessRedistrictingFile('sl500-in-sl010-us_s09', 109, 3);
 	ProcessRedistrictingFile('sl500-in-sl010-us_h10', 110, 1);
 	ProcessRedistrictingFile('sl500-in-sl010-us_s10', 110, 3);
+
+} elsif ($ARGV[0] eq 'SCHEMA') {
+	GenerateSchema();
 
 # These are for testing...
 } elsif ($ARGV[0] eq 'TESTSUMFILE') {
@@ -136,7 +146,7 @@ if ($ARGV[0] eq 'GEO') {
 }
 
 sub ProcessSummaryFile {
-	my ($file, $n, $testing) = @_;
+	my ($file, $n, $testing, $skipexisting) = @_;
 
 	if (!-e "$file.zip") { return; }
 
@@ -147,7 +157,7 @@ sub ProcessSummaryFile {
 	my $tabledir = "table_layouts/sf$n";
 	opendir DIR, $tabledir;
 	foreach my $table (readdir(DIR)) {
-		ProcessSumFileTable($file, $n, "$tabledir/$table");
+		ProcessSumFileTable($file, $n, "$tabledir/$table", undef, undef, undef, $skipexisting);
 	}
 	closedir DIR;
 }
@@ -354,13 +364,17 @@ sub MakePlaceURI {
 }
 
 sub ProcessSumFileTable {
-	my ($file, $sf, $layout, $isCD, $state, $segment) = @_;
+	my ($file, $sf, $layout, $isCD, $state, $segment, $skipexisting) = @_;
 
 	if ($layout !~ /sf(\d)(\d\d)\.sas$/i) { return; }
 	my $table = $2;
 	
 	my $template = ParseSumFileLayout($layout);
 	if ($template eq "") { return; }
+
+	if (!$isCD && $skipexisting && -e "rdf/sumfile$sf-$table-states.n3.gz") {
+		return;
+	}
 
 	print STDERR "Summary File $file Table $table\n";
 
@@ -463,6 +477,11 @@ sub ParseSumFileLayout {
 	# actual numbers can be filled in for each place later.
 
 	my $file = shift;
+	my $writeschema = shift;
+
+	if ($file !~ /sf(\d)(\d\d)\.sas$/i) { die; }
+	my $sf = $1;
+	my $table = $2;
 
 	my $title;
 	my $universe;
@@ -471,6 +490,7 @@ sub ParseSumFileLayout {
 	my $isfirst;
 	my $tabs = '';
 	my @indents;
+	my @hierarchy;
 
 	my $ret = "";
 
@@ -531,17 +551,19 @@ sub ParseSumFileLayout {
 
 			while (scalar(@indents) > 0 && $indent <= $indents[scalar(@indents)-1] || ($isfirst && scalar(@indents) > 0)) {
 				pop @indents;
+				pop @hierarchy;
 				$ret .= "$tabs] ;\n";
 				$tabs =~ s/\t//;
 			}
 
-			my $predicate = $name;
+			my $predicate = MakePredicate($name);
+			my $predicatename = $name;
 			my $groupvalue = 'rdf:value';
-			$predicate = MakePredicate($predicate);
 
 			if ($nextstartgroup ne '' && $nextstartgroup ne 'INGROUP') {
 				if ($name !~ /^Total/i) { die "Had a special group before a non-'total' line: $nextstartgroup / $name"; }
 				$predicate = MakePredicate($nextstartgroup);
+				$predicatename = $nextstartgroup;
 				$nextstartgroup = 'INGROUP';
 			}
 
@@ -551,8 +573,10 @@ sub ParseSumFileLayout {
 						$ret .= $tabs . MakePredicate($universe);
 						$ret .= " [ dc:title \"$title\";\n";
 						push @indents, 0;
+						push @hierarchy, MakePredicate($universe);
 					} else {
 						$predicate = MakePredicate($universe);
+						$predicatename = $universe;
 						$indent--;
 					}
 				} else {
@@ -561,14 +585,36 @@ sub ParseSumFileLayout {
 						$isgroup = 1;
 					}
 					$predicate = MakePredicate($universe);
+					$predicatename = $universe;
 				}
 			}
 			if ($specialtotal ne '') {
 				$groupvalue = MakePredicate($specialtotal);
 				$isgroup = 1;
+
+				if ($writeschema && SchemaOnce($groupvalue)) {
+					print SCHEMA "$groupvalue a rdf:Property ; rdfs:label \"" . EscapeN3String($specialtotal) . "\" .\n";
+				}
+				if ($writeschema && SchemaOnce("$sf-$table|" . $groupvalue)) {
+					print SCHEMA $groupvalue . " census:inTable \"$sf-$table\" .\n";
+				}
+				if ($writeschema && SchemaOnce($predicate . "|" . $groupvalue)) {
+					print SCHEMA $predicate . " census:hasValue " . $groupvalue . " .\n";
+				}
+			}
+
+			if ($writeschema && SchemaOnce($predicate)) {
+				print SCHEMA "$predicate a rdf:Property ; census:colid \"$id\" ; rdfs:label \"" . EscapeN3String($predicatename) . "\" .\n";
+			}
+			if ($writeschema && SchemaOnce("$sf-$table|" . $predicate)) {
+				print SCHEMA $predicate . " census:inTable \"$sf-$table\" .\n";
+			}
+			if ($writeschema && scalar(@hierarchy) > 0 && SchemaOnce($hierarchy[scalar(@hierarchy)-1] . "|" . $predicate)) {
+				print SCHEMA $hierarchy[scalar(@hierarchy)-1] . " census:hasSlice " . $predicate . " .\n";
 			}
 
 			$ret .= "$tabs$predicate ";
+			
 			if ($isgroup) {
 				$tabs .= "\t";
 				if ($isfirst) {
@@ -578,6 +624,7 @@ sub ParseSumFileLayout {
 					$ret .= "[ $groupvalue ";
 				}
 				push @indents, $indent;
+				push @hierarchy, $predicate;
 			}
 
 			$ret .= "%%$id%% ; \t# $id\n";
@@ -611,7 +658,7 @@ sub ParseSumFileLayout {
 		die "Invalid line in SAS layout in file $file: " . $line;
 	}
 	close LAYOUT;
-
+	
 	while (scalar(@indents) > 0) {
 		pop @indents;
 		$ret .= "$tabs] ;\n";
@@ -634,6 +681,19 @@ sub MakePredicate {
 	if ($predicate =~ /^[^a-z]/) { $predicate = "_$predicate"; }
 	$predicate = ":$predicate";
 	return $predicate;
+}
+
+sub EscapeN3String {
+	my $str = shift;
+	$str =~ s/"/\\"/g;
+	return $str;
+}
+
+sub SchemaOnce {
+	my $key = shift;
+	my $ret = !$SchemaSeen{$key};
+	$SchemaSeen{$key} = 1;
+	return $ret;
 }
 
 sub ProcessRedistrictingFile {
@@ -684,4 +744,33 @@ sub ProcessRedistrictingFile {
 	close DISTS2;
 }
 
+sub GenerateSchema {
+	mkdir "rdf";
 
+	open SCHEMA, ">rdf/schema.n3";
+	print SCHEMA <<EOF;
+\@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+\@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+\@prefix dc: <http://purl.org/dc/elements/1.1/> .
+\@prefix census: <tag:govshare.info,2005:rdf/census/> .
+EOF
+
+	foreach my $sf (1, 3) {
+		my $predtype;
+		if ($sf == 1) { $predtype = "100pct"; }
+		elsif ($sf == 3) { $predtype == "samp"; }
+		else { die; }
+
+		print SCHEMA "\@prefix : <tag:govshare.info,2005:rdf/census/details/$predtype/> .\n";
+	
+		my $tabledir = "table_layouts/sf$sf";
+		opendir DIR, $tabledir;
+		foreach my $table (readdir(DIR)) {
+			if ($table !~ /sf$sf(\d\d)\.sas$/i) { next; }
+			my $template = ParseSumFileLayout("table_layouts/sf$sf/$table", 1);
+			if ($template eq "") { next; }
+		}
+		closedir DIR;
+	}
+	close SCHEMA;
+}
