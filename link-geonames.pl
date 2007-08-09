@@ -11,7 +11,7 @@
 $GEONAMES = 'geonames/US.txt'; # path to file
 
 # SPARQL configuration
-if (0) {
+if (1) {
 	# use my own data source
 	$datasource = 'http://www.govtrack.us/sparql';
 	$SPARQL_FROM = '';

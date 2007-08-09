@@ -44,9 +44,18 @@ RDF</a>).</div>
 <h4>Try it out...</h4>
 
 <ul>
-	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: Basic geographic data for the U.S., the states, counties, and what I call towns and villages.  2.5 MB; 515,309 triples in N3 format.  See <a href="#geo">example data</a> below.</li>
+	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: Basic <b>geographic data</b> for the U.S., the states, counties, cities, ZCTAs (the Census's approximation to zip codes), and congressional districts.  3.8 MB; 847,089 triples in N3 format.  See <a href="#geo">example data</a> below.</li>
+	<li>For the <b>detailed Census statistics</b>, you'll have to download the raw Census data files from the Census Bureau, my Perl script and the patch file below and run it yourself because the files are too big for me to offer as a download!</li>
 	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census.pl">census.pl</a>: Perl script to generate &gt;700M triples of detailed census data from the Census's published data files. The script contains documentation on where to get the data files from the Census and how to run it.  If you want to generate the detailed data, you'll also need <a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census_table_layouts.patch">census_table_layouts.patch</a> which patches some auxiliary files that you'll need to get from the Census.</li>
 	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/link-geonames.pl">link-geonames.pl</a>: Perl script to establish owl:sameAs links from this data set to the <a href="http://www.geonames.org/">Geonames</a> data set.</li>
+</ul>
+
+<h4>More information from the Census...</h4>
+
+<ul>
+	<li><a href="http://www.census.gov/Press-Release/www/2001/sumfile1.html">Summary File 1 (SF1)</a>: Tables focusing on age, sex, households, families, and housing units. Documentation and FTP download.</li>
+	<li><a href="http://www.census.gov/Press-Release/www/2002/sumfile3.html">Summary File 3 (SF3)</a>: Tables focusing on social, economic and housing characteristics compiled from a sample of approximately 19 million housing units (about 1 in 6 households) that received the Census 2000 long-form questionnaire. Documentation and FTP download.</li>
+	<li><a href="http://www.census.gov/geo/ZCTA/zcta.html">ZTCAs: ZIP Code Tabulation Areas</a> (i.e. not ZIP codes exactly)</li>
 </ul>
 
 <h2>About the Census Data</h2>
@@ -56,11 +65,11 @@ levels, from the U.S. as a whole, down through states, counties,
 sub-counties (roughly, cities and 
 incorporated towns), so-called "census data 
 places" ("CDP"s, what I would call a named "village", but might 
-correspond better with the colloquial use of the word town),
-and even deeper levels of granularity.
+correspond better with the colloquial use of the word town), ZIP Code Tabulation Areas
+(ZCTAs, which approximate ZIP codes), and even deeper levels of granularity.
 
 <div class="sidenote">Side notes: The data set contains around 3,200 counties, 36,000 
-"towns", and 16,000 "villages".  There are fewer CDPs than towns here 
+"towns", 16,000 "villages", and 33,000 ZCTAs.  There are fewer CDPs than towns here 
 because I exclude CDPs that represent 100% of the town they are 
 contained in. A big chunk of the 25k stats per region is iterations of 
 the same statistics but for race-based subsets of the total population 
@@ -216,8 +225,7 @@ Besides some standard schemas, I use two of my own: <a href="http://www.govtrack
 <div class="p">You may notice the landArea and waterArea values are given in a strange half-number/half-unit literal value.  I didn't know what to do since there isn't much consensus on how to indicate the units of physical quantities in RDF.  (See the thread "ontology for units of measurement and/or physical quantities" at <a href="http://lists.w3.org/Archives/Public/semantic-web/2006Sep/0053.html">the semantic-web mail list archives</a> and <a href="http://lists.w3.org/Archives/Public/semantic-web/2006Oct/0064.html">my own suggestion</a> that came later on.)</div>
 
 <ul>
-	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: 
-	2.5 MB; 515,309 triples.</li>
+	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: Basic geographic data for the U.S., the states, counties, cities, ZCTAs, and congressional districts.  3.8 MB; 847,089 triples in N3 format.</li>
 </ul>
 
 
@@ -281,10 +289,24 @@ P003004='        Black or African American alone'
   ...
 </pre>
 
-<h2>Loading the Data into a Triple Store</h2>
+<ul>
+<li>To get the 710M triples for this data, you'll have to download the raw Census files and my script, because it's too big for me
+to provide as a download myself. See the top of this page for the links.</li>
+</ul>
 
-<div class="p">The conversion process to Notation 3 yielded 515,309 triples for the geographic data and 716,779,251 triples for the population data (716 million for the country, 
-states, counties, towns, and villages; 5 million for congressional districts).</div>
+<h3>Overall Statistics</h3>
+
+<div class="p">The conversion process to Notation 3 yielded a total of ____ triples.</div>
+
+<div class="p">847,089 triples were for the geographic data.</div>
+
+<div class="p">716,779,251 triples were for the detailed population data: 
+	716 million for the country, states, counties, towns, and villages;
+	372,356,694 for ZCTAs;
+	5 million for congressional districts.</div>
+
+
+<h2>Loading the Data into a Triple Store</h2>
 
 <div class="p">I used my own <a href="http://razor.occams.info/code/semweb">SemWeb Library for C#</a> to 
 load the triples into a MySQL database.  
