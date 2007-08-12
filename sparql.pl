@@ -13,7 +13,7 @@ sub SparqlQuery {
 	my $req = POST $url, [ query => $query ];
 	my $resp = $UA->request($req);
 	if (!$resp->is_success) {
-		die "Query failed: " . $resp->code . " " . $resp->message;
+		die "Query failed:\n$url?query=$query\n" . $resp->code . " " . $resp->message;
 	}
 
 	my $doc = $XMLPARSER->parse_string($resp->content);

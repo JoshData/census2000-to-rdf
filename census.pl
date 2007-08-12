@@ -33,10 +33,10 @@
 # summary files, but instead for congressional districts. It creates
 # around 5 million triples. For that, you'll need any of the files
 # below --- plus the table_layouts/* files (read on) ---.
-#   sl500-in-sl010-us_h09.zip      (31MB)   (109th Congress districts)
-#   sl500-in-sl010-us_s09.zip      (82MB)   (109th Congress districts)
-#   sl500-in-sl010-us_h10.zip      (31MB)   (110th Congress districts)
-#   sl500-in-sl010-us_s10.zip      (82MB)   (110th Congress districts)
+#   sl500-in-sl010-us_h09.zip      (31MB)   (109th Congress districts, 100% data)
+#   sl500-in-sl010-us_s09.zip      (82MB)   (109th Congress districts, sample data)
+#   sl500-in-sl010-us_h10.zip      (31MB)   (110th Congress districts, 100% data)
+#   sl500-in-sl010-us_s10.zip      (82MB)   (110th Congress districts, sample data)
 #
 # When processing the Summary Files, many per-race tables are left
 # out in order to keep the size of the resulting data managable.
@@ -193,7 +193,7 @@ sub ProcessGeoTables {
 	my %FILES;
 
 	if (defined($outputfile)) {
-		my $outputfileroot = "rdf/";
+		my $outputfileroot = "rdf";
 		mkdir $outputfileroot;
 
 		my $append = '';
@@ -201,14 +201,14 @@ sub ProcessGeoTables {
 		if ($outputfile eq 'usgeo') {
 			%FILES = (STATE => 'states', COUNTY => 'counties',
 				COUNTYSUB => 'towns', COUNTYSUBPLACE => 'villages',
-				ZCTA => 'zcta');
+				ZCTA => 'zctas');
 		} else {
 			%FILES = (DISTS => $outputfile);
 			$append = '>';
 		}
 
 		foreach my $file (keys(%FILES)) {
-			open $file, ">$append$outputfileroot$FILES{$file}.n3";
+			open $file, ">$append$outputfileroot/geo-$FILES{$file}.n3";
 			print $file <<EOF;
 \@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 \@prefix dc: <http://purl.org/dc/elements/1.1/> .
@@ -228,10 +228,8 @@ EOF
 		my %info;
 		foreach my $f (@FIELDS) {
 			my $val = substr($line, $start, $FIELDSIZE{$f});
-			$val =~ s/^\s+//;
-			$val =~ s/\s+$//;
 			$start += $FIELDSIZE{$f};
-			$info{$f} = ESC($val);
+			$info{$f} = $val;
 		}
 	
 		if ($info{GEOCOMP} ne "00") { next; }
@@ -243,16 +241,21 @@ EOF
 		my $uri;
 		my $parent;
 
+		for my $key (NAME, AREALAND, AREAWATR) {
+			$info{$key} =~ s/^\s+//;
+			$info{$key} =~ s/\s+$//;
+		}
+
 		$info{NAME} = NicePlaceName($info{NAME});
 	
 		if ($info{SUMLEV} eq "010") {
 			$file  = "US";
-			$uri = "tag:govshare.info,2005:data/us";
+			$uri = "http://www.rdfabout.com/rdf/usgov/geo/us";
 			$isa = "<tag:govshare.info,2005:rdf/politico/Country>";
 
 		} elsif ($info{SUMLEV} eq "860") {
 			$file  = "ZCTA";
-			$uri = "tag:govshare.info,2005:data/us/zcta/" . $info{ZCTA5};
+			$uri = "http://www.rdfabout.com/rdf/usgov/geo/census/zcta/" . $info{ZCTA5};
 			$isa = "census:ZCTA";
 			$parent = "tag:govshare.info,2005:data/us";
 			$info{NAME} = "ZCTA " . $info{ZCTA5};
@@ -282,7 +285,7 @@ EOF
 			$isa = "usgovt:Village";
 			if ($POP{COUNTYSUB} == $info{POP100}) { next; } # this region is the same as its parent region
 
-		} elsif ($info{SUMLEV} eq "500") { # congressional district
+		} elsif ($info{SUMLEV} eq "500" && defined($congress)) { # congressional district
 			$file = "DISTS";
 
 			my $state = lc($CENSUSSTATES{0+$info{STATE}});
@@ -290,8 +293,8 @@ EOF
 			my $dist = $2;
 			if ($dist eq "(at Large)") { $dist = 1; }
 
-			$uri = "tag:govshare.info,2005:data/us/$state/congressional-districts/$congress/$dist";
-			$parent = "tag:govshare.info,2005:data/us/$state";
+			$uri = "http://www.rdfabout.com/rdf/usgov/geo/us/$state/cd/$congress/$dist";
+			$parent = "http://www.rdfabout.com/rdf/usgov/geo/us/$state";
 			$isa = "usgovt:CongressionalDistrict";
 
 		} else { next; }
@@ -321,10 +324,10 @@ EOF
 		print $file "	usgovt:fipsStateCountyCode \"$info{STATE}:$info{COUNTY}\" ;\n" if ($file2 eq "COUNTY");
 		print $file "	dc:title \"$info{NAME}\" ;\n";
 		print $file "	dcterms:isPartOf <$parent> ;\n" if ($file2 ne "US");
-		print $file "	geo:lat \"$info{INTPLAT}\" ;\n";
-		print $file "	geo:long \"$info{INTPLON}\" ;\n";
-		print $file "	census:population \"$info{POP100}\" ;\n";
-		print $file "	census:households \"$info{HU100}\" ;\n";
+		print $file "	geo:lat $info{INTPLAT} ;\n";
+		print $file "	geo:long $info{INTPLON} ;\n";
+		print $file "	census:population $info{POP100} ;\n";
+		print $file "	census:households $info{HU100} ;\n";
 		print $file "	census:landArea \"$info{AREALAND} m^2\" ;\n";
 		print $file "	census:waterArea \"$info{AREAWATR} m^2\" .\n";
 	}
@@ -336,13 +339,6 @@ EOF
 			close $file;
 		}
 	}
-}
-
-sub ESC {
-	my $lit = shift;
-	#$lit =~ /([^ A-Za-z0-9\+\-().,\/'#x])/;
-	#if (defined($1)) { warn $1; }
-	return $lit;
 }
 
 sub NicePlaceName {
@@ -372,7 +368,7 @@ sub ProcessSumFileTable {
 	my $template = ParseSumFileLayout($layout);
 	if ($template eq "") { return; }
 
-	if (!$isCD && $skipexisting && -e "rdf/sumfile$sf-$table-states.n3.gz") {
+	if (!$isCD && $skipexisting && -e "rdf/sumfile-states-$sf-$table.n3.gz") {
 		return;
 	}
 
@@ -380,7 +376,7 @@ sub ProcessSumFileTable {
 
 	my $predtype;
 	if ($sf == 1) { $predtype = "100pct"; }
-	elsif ($sf == 3) { $predtype == "samp"; }
+	elsif ($sf == 3) { $predtype = "samp"; }
 	else { die; }
 
 	my $namespaces = <<EOF;
@@ -399,6 +395,9 @@ EOF
 			 . sprintf("%05d", $table) . "." . $segment;
 	}
 
+	my $counter = 0;
+	my $starttime = time;
+
 	open (DATA, "unzip -p " . $file . ".zip $tablefile |") or die "$file.zip -> $tablefile: $@";
 	while (!eof(DATA)) {
 		if ($firstline) {
@@ -406,11 +405,11 @@ EOF
 			# tables we attempt in the SF3-part1 file that aren't in that zip file.
 			if (defined(%LOGRECNOURI)) {
 				if (!$isCD) {
-					open STATE, "| gzip > rdf/sumfile$sf-$table-states.n3.gz";
-					open COUNTY, "| gzip > rdf/sumfile$sf-$table-counties.n3.gz";
-					open COUNTYSUB, "| gzip > rdf/sumfile$sf-$table-towns.n3.gz";
-					open COUNTYSUBPLACE, "| gzip > rdf/sumfile$sf-$table-villages.n3.gz";
-					open ZCTA, "| gzip > rdf/sumfile$sf-$table-zcta.n3.gz";
+					open STATE, "| gzip > rdf/sumfile-states-$sf-$table.n3.gz";
+					open COUNTY, "| gzip > rdf/sumfile-counties-$sf-$table.n3.gz";
+					open COUNTYSUB, "| gzip > rdf/sumfile-towns-$sf-$table.n3.gz";
+					open COUNTYSUBPLACE, "| gzip > rdf/sumfile-villages-$sf-$table.n3.gz";
+					open ZCTA, "| gzip > rdf/sumfile-zctas-$sf-$table.n3.gz";
 
 					print STATE $namespaces;
 					print COUNTY $namespaces;
@@ -445,9 +444,7 @@ EOF
 		if (!defined($uri)) { next; }
 
 		my $t = $template;
-		for (my $i = 0; $i < scalar(@fields); $i++) {
-			$t =~ s/%$i%/$fields[$i]/eg;
-		}
+		$t =~ s/%(\d+)%/$fields[$1]/eg;
 
 		if (!defined(%LOGRECNOURI)) {
 			print "<> $t";
@@ -458,6 +455,9 @@ EOF
 		}
 		
 		if (!defined(%LOGRECNOURI)) { last; } # running standalone
+
+		$counter++;
+		if (($counter % 40000) == 0) { print "Scanned $counter records at " . int($counter / (time-$starttime)) . " records/sec\n"; }
 	}
 
 	if (defined(%LOGRECNOURI)) {
@@ -758,7 +758,7 @@ EOF
 	foreach my $sf (1, 3) {
 		my $predtype;
 		if ($sf == 1) { $predtype = "100pct"; }
-		elsif ($sf == 3) { $predtype == "samp"; }
+		elsif ($sf == 3) { $predtype = "samp"; }
 		else { die; }
 
 		print SCHEMA "\@prefix : <tag:govshare.info,2005:rdf/census/details/$predtype/> .\n";

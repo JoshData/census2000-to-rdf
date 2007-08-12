@@ -8,12 +8,12 @@
 # correspondences are written out in NTriples format to
 # STDOUT.
 
-$GEONAMES = 'geonames/US.txt'; # path to file
+$GEONAMES = 'geonames-US.txt'; # path to file
 
 # SPARQL configuration
 if (1) {
 	# use my own data source
-	$datasource = 'http://www.govtrack.us/sparql';
+	$datasource = 'http://rdfabout.com/sparql';
 	$SPARQL_FROM = '';
 } else {
 	# use Virtuoso data source
@@ -30,9 +30,11 @@ $owlsameas = '<http://www.w3.org/2002/07/owl#sameAs>';
 $dctitle = '<http://purl.org/dc/elements/1.1/title>';
 $dcispartof = '<http://purl.org/dc/terms/isPartOf>';
 
+open LINKS, ">rdf/link-geonames.nt";
+
 # Hard-code the correspondence to the US.
 
-print "<tag:govshare.info,2005:data/us> $owlsameas <http://www.geonames.org/countries/#US> .\n";
+print LINKS "<http://www.rdfabout.com/rdf/usgov/geo/us> $owlsameas <http://www.geonames.org/countries/#US> .\n";
 
 # Get a list of FIPS and USPS state codes.
 @states = SparqlQuery($datasource, <<EOF);
@@ -84,7 +86,7 @@ while (!eof(GEONAMES)) {
 		# This is a state. We've already pre-fetched its ADM1 code.
 
 		if (!defined($StateUri{$admin1})) { warn "State $admin1 is not in Census dataset."; next; }
-		print "$StateUri{$admin1} $owlsameas <http://sws.geonames.org/$id/> .\n";
+		print LINKS "$StateUri{$admin1} $owlsameas <http://sws.geonames.org/$id/> .\n";
 
 	} elsif ($fcode eq 'ADM2') {
 		# This is a county. We've pre-fetched these too.
@@ -92,7 +94,7 @@ while (!eof(GEONAMES)) {
 		if (!defined($StateFips{$admin1})) { warn "State $admin1 is not in Census dataset."; next; }
 		my $uri = $CountyUri{$StateFips{$admin1} . ':' . $admin2};
 		if (!defined($uri)) { warn "County $admin1:$admin2 is not in Census data set"; next; }
-		print "$uri $owlsameas <http://sws.geonames.org/$id/> .\n";
+		print LINKS "$uri $owlsameas <http://sws.geonames.org/$id/> .\n";
 
 	} elsif ($fcode eq 'AMDD' || $fcode eq 'PPL') {
 		# This might be either a town or a village as far as the Census
@@ -129,7 +131,7 @@ WHERE {
 }
 EOF
 
-			print STDERR "For $countyuri fetched " . scalar(@Towns) . " towns, " . scalar(@Villages) . " villages.\n";
+			#print STDERR "For $countyuri fetched " . scalar(@Towns) . " towns, " . scalar(@Villages) . " villages.\n";
 
 			$CountyPlaces{$countyuri} = [[@Towns], [@Villages]];
 		}
@@ -138,20 +140,23 @@ EOF
 		my @CachedVillages = @{ $CountyPlaces{$countyuri}[1] };
 
 		my @places;
+		my @relevant;
 		foreach my $p (@CachedTowns) {
 			if ($name eq $$p{name}) { push @places, $$p{entity}; }
+			push @relevant, $$p{name};
 		}
 		foreach my $p (@CachedVillages) {
 			if ($name eq $$p{name}) { push @places, $$p{entity}; }
+			push @relevant, $$p{name};
 		}
 
 		if (scalar(@places) == 0) {
-			print STDERR "No entry for $name in $countyuri\n";
+			#print STDERR "No entry for $name in $countyuri, out of " . join(", ", @relevant) . "\n";
 		} elsif (scalar(@places) == 1) {
 			my $uri = $places[0];
-			print "<$uri> $owlsameas <http://sws.geonames.org/$id/> .\n";
+			print LINKS "<$uri> $owlsameas <http://sws.geonames.org/$id/> .\n";
 		} else {
-			print STDERR "No unique entry for $name in $countyuri\n";
+			#print STDERR "No unique entry for $name in $countyuri\n";
 		}
 	}
 
@@ -159,3 +164,5 @@ EOF
 
 }
 close GEONAMES;
+close LINKS;
+
