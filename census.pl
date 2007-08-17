@@ -329,7 +329,9 @@ EOF
 		print $file "	census:population $info{POP100} ;\n";
 		print $file "	census:households $info{HU100} ;\n";
 		print $file "	census:landArea \"$info{AREALAND} m^2\" ;\n";
-		print $file "	census:waterArea \"$info{AREAWATR} m^2\" .\n";
+		print $file "	census:waterArea \"$info{AREAWATR} m^2\" ;\n";
+		print $file "	census:details <$uri/censustables> .\n";
+		print $file "<$parent> dcterms:hasPart <$uri> .\n" if ($file2 ne "US");
 	}
 
 	close CENSUS;
@@ -451,7 +453,7 @@ EOF
 		} else {
 			my $file = $LOGRECNOTYPE{$logrecno};
 			if ($file eq "DISTS") { $file = "DISTS2"; }
-			print $file "<$uri> $t";
+			print $file "<$uri/censustables> $t";
 		}
 		
 		if (!defined(%LOGRECNOURI)) { last; } # running standalone
@@ -605,6 +607,9 @@ sub ParseSumFileLayout {
 
 			if ($writeschema && SchemaOnce($predicate)) {
 				print SCHEMA "$predicate a rdf:Property ; census:colid \"$id\" ; rdfs:label \"" . EscapeN3String($predicatename) . "\" .\n";
+				if (scalar(@indents) == 0) {
+					print SCHEMA "$predicate a census:Universe .\n";
+				}
 			}
 			if ($writeschema && SchemaOnce("$sf-$table|" . $predicate)) {
 				print SCHEMA $predicate . " census:inTable \"$sf-$table\" .\n";
