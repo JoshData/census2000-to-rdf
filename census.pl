@@ -111,6 +111,8 @@
 # which will output schema.n3 in the rdf directory.
 # -------------------------------------------------------------------
 
+use Unicode::MapUTF8 qw(to_utf8 from_utf8 utf8_supported_charset);
+
 if ($ARGV[0] eq 'GEO') {
 	ProcessGeoTables("usgeo_uf1.txt", 'usgeo');
 
@@ -214,8 +216,8 @@ sub ProcessGeoTables {
 \@prefix dc: <http://purl.org/dc/elements/1.1/> .
 \@prefix dcterms: <http://purl.org/dc/terms/> .
 \@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
-\@prefix census: <tag:govshare.info,2005:rdf/census/> .
-\@prefix usgovt: <tag:govshare.info,2005:rdf/usgovt/> .
+\@prefix census: <http://www.rdfabout.com/rdf/schema/census/> .
+\@prefix usgovt: <http://www.rdfabout.com/rdf/schema/usgovt/> .
 EOF
 			}
 	}
@@ -247,18 +249,20 @@ EOF
 		}
 
 		$info{NAME} = NicePlaceName($info{NAME});
-	
+		
 		if ($info{SUMLEV} eq "010") {
 			$file  = "US";
 			$uri = "http://www.rdfabout.com/rdf/usgov/geo/us";
-			$isa = "<tag:govshare.info,2005:rdf/politico/Country>";
+			$isa = "<http://www.rdfabout.com/rdf/schema/politico/Country>";
 
 		} elsif ($info{SUMLEV} eq "860") {
 			$file  = "ZCTA";
 			$uri = "http://www.rdfabout.com/rdf/usgov/geo/census/zcta/" . $info{ZCTA5};
 			$isa = "census:ZCTA";
-			$parent = "tag:govshare.info,2005:data/us";
 			$info{NAME} = "ZCTA " . $info{ZCTA5};
+			
+			$info{ZCTA5} =~ /^(\d\d)/;
+			$parent = "http://www.rdfabout.com/rdf/usgov/geo/census/zcta-group/$1";
 
 		} elsif ($info{SUMLEV} eq "040") {
 			$file  = "STATE";
@@ -291,7 +295,7 @@ EOF
 			my $state = lc($CENSUSSTATES{0+$info{STATE}});
 			if ($info{NAME} !~ /^(Congressional|Delegate|Resident Commissioner) District (\d+|\(at Large\))$/) { die $info{NAME}; }
 			my $dist = $2;
-			if ($dist eq "(at Large)") { $dist = 1; }
+			if ($dist eq "(at Large)") { next; } # it is just the parent entity; no need to duplicate
 
 			$uri = "http://www.rdfabout.com/rdf/usgov/geo/us/$state/cd/$congress/$dist";
 			$parent = "http://www.rdfabout.com/rdf/usgov/geo/us/$state";
@@ -332,6 +336,14 @@ EOF
 		print $file "	census:waterArea \"$info{AREAWATR} m^2\" ;\n";
 		print $file "	census:details <$uri/censustables> .\n";
 		print $file "<$parent> dcterms:hasPart <$uri> .\n" if ($file2 ne "US");
+		
+		# Grouping ZCTAs.
+		if ($info{SUMLEV} eq "860" && !$SeenZCTAGroup{$parent}) {
+			$SeenZCTAGroup{$parent} = 1;
+			print $file "<$parent> rdf:type census:ZCTAGroup .\n";
+			print $file "<$parent> dcterms:isPartOf <http://www.rdfabout.com/rdf/usgov/geo/us> .\n";
+			print $file "<http://www.rdfabout.com/rdf/usgov/geo/us> dcterms:hasPart <$parent> .\n";
+		}
 	}
 
 	close CENSUS;
@@ -345,6 +357,7 @@ EOF
 
 sub NicePlaceName {
 	my $name = shift;
+	$name = to_utf8({ -string => $name, -charset => 'WinLatin1' });
 	$name =~ s/ county$//g;
 	$name =~ s/ town$//g;
 	$name =~ s/ city$//g;
@@ -384,7 +397,7 @@ sub ProcessSumFileTable {
 	my $namespaces = <<EOF;
 \@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 \@prefix dc: <http://purl.org/dc/elements/1.1/> .
-\@prefix : <tag:govshare.info,2005:rdf/census/details/$predtype/> .
+\@prefix : <http://www.rdfabout.com/rdf/schema/uscensus/details/$predtype/> .
 EOF
 
 	my $firstline = 1;
@@ -709,7 +722,7 @@ sub ProcessRedistrictingFile {
 	my $geon3filename;
 	if ($n == 1) {	
 		$geon3filename = "congressional_districts_$congress";
-		unlink "rdf/$geon3filename.n3";
+		unlink "rdf/geo-$geon3filename.n3";
 	}
 
 	my $mainoutputfile = "rdf/congressional_districts_${congress}_sf$n.n3.gz";
@@ -733,14 +746,18 @@ sub ProcessRedistrictingFile {
 		system("unzip -q $statefile.zip $geofile");
 		ProcessGeoTables($geofile, $geon3filename, $congress);
 		unlink $geofile;
-
-		# process the sumfile tables
-		my $tabledir = "table_layouts/sf$n";
-		opendir DIR, $tabledir;
-		foreach my $table (readdir(DIR)) {
-			ProcessSumFileTable($statefile, $n, "$tabledir/$table", 1, $statename, $segment);
+		
+		if (!defined(%LOGRECNOURI)) {
+			print "No districts in this state...\n";
+		} else {
+			# process the sumfile tables
+			my $tabledir = "table_layouts/sf$n";
+			opendir DIR, $tabledir;
+			foreach my $table (readdir(DIR)) {
+				ProcessSumFileTable($statefile, $n, "$tabledir/$table", 1, $statename, $segment);
+			}
+			closedir DIR;
 		}
-		closedir DIR;
 
 		# get rid of the state file that we extracted from the main zip file
 		unlink "$statefile.zip";
@@ -757,7 +774,7 @@ sub GenerateSchema {
 \@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 \@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 \@prefix dc: <http://purl.org/dc/elements/1.1/> .
-\@prefix census: <tag:govshare.info,2005:rdf/census/> .
+\@prefix census: <http://www.rdfabout.com/rdf/schema/census/> .
 EOF
 
 	foreach my $sf (1, 3) {
@@ -766,7 +783,7 @@ EOF
 		elsif ($sf == 3) { $predtype = "samp"; }
 		else { die; }
 
-		print SCHEMA "\@prefix : <tag:govshare.info,2005:rdf/census/details/$predtype/> .\n";
+		print SCHEMA "\@prefix : <http://www.rdfabout.com/rdf/schema/uscensus/details/$predtype/> .\n";
 	
 		my $tabledir = "table_layouts/sf$sf";
 		opendir DIR, $tabledir;
