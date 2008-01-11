@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>The 2000 U.S. Census: From Raw Format to RDF</title>
+		<title>The 2000 U.S. Census: 1 Billion RDF Triples</title>
 		<style>
 			body { padding: 1em; max-width: 50em; border-right: 1px solid #EEEEEE; background-color: #FBFBFB; font-size: 85%; }
 
@@ -15,27 +15,28 @@
 	</head>
 	<body>
 
-<h1 style="max-width: 15em">The 2000 U.S. Census: From Raw Format to RDF</h1>
+<h1>The 2000 U.S. Census: 1 Billion RDF 
+Triples</h1>
 
-<div class="p"><a href="http://razor.occams.info">Joshua Tauberer</a></div>
-<div class="p">January 15, 2007 -- DRAFT</div>
+<div class="p">By <a href="http://razor.occams.info">Joshua Tauberer</a></div>
+<div class="p">August 14, 2007</div>
 
 <h2>Overview</h2>
 
-<div class="p">For some time now I've been interested in getting large amounts of 
+<div class="p">I've been interested lately in getting large amounts of 
 existing data into <a href="http://www.rdfabout.com">RDF</a> so that 
-databases once isolated by existing in vastly different data formats can 
-start to be easily meshed.  My first foray into this was getting
-<a href="http://www.govtrack.us/sparql.xpd">data on the U.S. Congress into RDF</a>,
-and since our people in Congress represent geographic regions, a logical
-step forward from there was to mesh that data with the
-<a href="http://www.census.gov">2000 U.S. Census</a>.</div>
+databases once isolated by being in vastly different data formats can 
+start to be meshed more easily.  (See <a 
+href="http://www.govtrack.us/sparql.xpd">data on the U.S. Congress in 
+RDF</a>). This page describes the <a href="http://www.census.gov">2000 U.S. Census</a>
+converted into RDF (<a href="/">what is RDF?</a>) and exposed via
+SPARQL.</div>
 
 <div class="p">The U.S. Census data is 
-provided by the Census in a structured format (with an enormous amount 
-of documentation, no less) and yields on the order of 700 million RDF 
-triples.  So the task was a hefty one, though fairly straight-forward, 
-and this document explains what I did from start to finish &mdash; first 
+provided by the Census Bureau in a structured format (with an enormous 
+amount of documentation, no less) and yields on the order of 1 billion 
+RDF triples.  The task of extracting those triples is a hefty one, 
+though fairly straight-forward, and this document explains what I did from start to finish &mdash; first 
 transforming the Census data into Notation 3 (with a Perl script), and 
 then loading it into a MySQL database and serving it via SPARQL (using 
 my own <a href="http://razor.occams.info/code/semweb">C# library for 
@@ -44,10 +45,12 @@ RDF</a>).</div>
 <h4>Try it out...</h4>
 
 <ul>
-	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: Basic <b>geographic data</b> for the U.S., the states, counties, cities, ZCTAs (the Census's approximation to zip codes), and congressional districts.  3.8 MB; 847,089 triples in N3 format.  See <a href="#geo">example data</a> below.</li>
+	<li><a href="census.tgz">census.tgz</a>: Basic <b>geographic data</b> for the U.S., the states, counties, cities, ZCTAs (the Census's approximation to zip codes), and congressional districts.  4.7 MB; 1,016,219 triples in N3 format.  See <a href="#geo">example data</a> below.</li>
 	<li>For the <b>detailed Census statistics</b>, you'll have to download the raw Census data files from the Census Bureau, my Perl script and the patch file below and run it yourself because the files are too big for me to offer as a download!</li>
-	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census.pl">census.pl</a>: Perl script to generate &gt;700M triples of detailed census data from the Census's published data files. The script contains documentation on where to get the data files from the Census and how to run it.  If you want to generate the detailed data, you'll also need <a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census_table_layouts.patch">census_table_layouts.patch</a> which patches some auxiliary files that you'll need to get from the Census.</li>
-	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/link-geonames.pl">link-geonames.pl</a>: Perl script to establish owl:sameAs links from this data set to the <a href="http://www.geonames.org/">Geonames</a> data set.</li>
+	<li><a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census.pl">census.pl</a>: Perl script to generate &gt;1B triples of detailed census data from the Census's published data files. The script contains documentation on where to get the data files from the Census and how to run it.  If you want to generate the detailed data, you'll also need <a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/census_table_layouts.patch">census_table_layouts.patch</a> which patches some auxiliary files that you'll need to get from the Census.
+	<a href="http://razor.occams.info/code/repo/?action=download&url=/govtrack/census/link-geonames.pl">link-geonames.pl</a> is a Perl script to establish owl:sameAs links from this data set to the <a href="http://www.geonames.org/">Geonames</a> data set.</li>
+	<li>Access a sample URI as linked data: <a href="http://www.rdfabout.com/rdf/usgov/geo/us">http://www.rdfabout.com/rdf/usgov/geo/us</a></li>
+	<li><a href="sparql.xpd">SPARQL Query Page and Examples</a></li>
 </ul>
 
 <h4>More information from the Census...</h4>
@@ -55,9 +58,20 @@ RDF</a>).</div>
 <ul>
 	<li><a href="http://www.census.gov/Press-Release/www/2001/sumfile1.html">Summary File 1 (SF1)</a>: Tables focusing on age, sex, households, families, and housing units. Documentation and FTP download.</li>
 	<li><a href="http://www.census.gov/Press-Release/www/2002/sumfile3.html">Summary File 3 (SF3)</a>: Tables focusing on social, economic and housing characteristics compiled from a sample of approximately 19 million housing units (about 1 in 6 households) that received the Census 2000 long-form questionnaire. Documentation and FTP download.</li>
-	<li><a href="http://www.census.gov/geo/ZCTA/zcta.html">ZTCAs: ZIP Code Tabulation Areas</a> (i.e. not ZIP codes exactly)</li>
+	<li>What are <a href="http://www.census.gov/geo/ZCTA/zcta.html">ZTCAs: ZIP Code Tabulation Areas</a> (i.e. not ZIP codes exactly)</li>
 </ul>
 
+<h4>Later on this page...</h4>
+
+<ul>
+	<li><a href="#aboutthedata">About the Census Data</a></li>
+	<li><a href="#modeling">Modeling the Census Data as RDF and Conversion to 
+Notation 3</a></li>
+	<li><a href="#loading">Loading the Data into a Triple Store and Exposing it to 
+the World</a></li>
+</ul>
+
+<a name="aboutthedata"/>
 <h2>About the Census Data</h2>
 
 <div class="p">The Census data comprises population statistics at various geographic 
@@ -74,7 +88,7 @@ because I exclude CDPs that represent 100% of the town they are
 contained in. A big chunk of the 25k stats per region is iterations of 
 the same statistics but for race-based subsets of the total population 
 of each region, and since I don't think that's so interesting, and I 
-wanted to keep the data size managable (700M is large enough, thank 
+wanted to keep the data size managable (1B is large enough, thank 
 you), I omit those stats, leaving around 11 thousand per region.</div>
 
 The statistics 
@@ -114,7 +128,10 @@ either case the hierarchy is not explicitly modeled.  An XML-ish
 database might work well, but the flexibility of a native RDF store for 
 encoding a graph seems like a fair enough fit.</div>
 
-<h2>Modeling the Census Data in RDF</h2>
+<a name="modeling"/>
+<h2>Modeling the Census Data in RDF and Conversion to Notation 3</h2>
+
+<h3>Modeling Choices</h3>
 
 <div class="p">The Census data could have been modeled in RDF any number of ways,
 and I chose one way that seemed to work out all right.  I wanted
@@ -125,12 +142,18 @@ into smaller groups.  Each slice of the world is represented by a RDF predicate.
 Tables as such are represented by blank (anonymous) nodes.</div>
 
 <div class="p">Okay, to take an example: Each region starts off with a node
-representing the region, i.e. <code>&lt;tag:govshare.info,2005:data/us&gt;</code>
-for the United States as a whole.  The first way the Census splices
+representing the region, i.e. <code>&lt;http://www.rdfabout.com/rdf/usgov/geo/us&gt;</code>
+for the United States as a whole. To keep the thousands of statistics 
+slightly separated from the basic geographic data, that node follows a
+<code>census:details</code> predicate to a new node representing the 2000 Census
+statistics for that region. By the current convention, the URIs for the details
+node just appends "/censustables" to the region URI.</div>
+
+<div class="p">The first way the Census splices
 the world as it pertains to that region is by dividing the world into
 universes, which as I mentioned above are "total population", "households",
 etc.  In the RDF model, predicates representing each universe are
-applied to the region entity and land on a bnode representing a table
+applied to the <code>...region/censustables</code> entity and land on a bnode representing a table
 that will further divide that universe.  If the "total population" universe
 is then subdivided into "male" versus "female", predicates leave the first
 bnode and land on two new bnodes representing the males out of the total
@@ -182,9 +205,9 @@ graph.)</div>
 <div class="p">Besides the graph above, there is also a hierarchy established
 between regions themselves using <code>dcterms:isPartOf</code>, and
 several other features including actual names and latitute/longitude
-are represented as predicates directly off of the Region node.</div>
+are represented as predicates directly off of the region node.</div>
 
-<h2>Converting the Census Raw Data Files to Notation 3</h2>
+<h3>Converting the Census Raw Data Files to Notation 3</h3>
 
 <div class="p">The Census publishes their data in text-based data files (compressed,
 since even compressed it is several gigabytes in all).  I chose
@@ -207,35 +230,45 @@ Besides some standard schemas, I use two of my own: <a href="http://www.govtrack
 @prefix census: &lt;tag:govshare.info,2005:rdf/census/&gt; .
 @prefix usgovt: &lt;tag:govshare.info,2005:rdf/usgovt/&gt; .
 
-&lt;tag:govshare.info,2005:data/us/ny&gt; 
+&lt;http://www.rdfabout.com/rdf/usgov/geo/us/ny&gt; 
    rdf:type usgovt:State ;
    usgovt:censusStateCode "21" ;
    usgovt:fipsStateCode "36" ;
    usgovt:uspsStateCode "NY" ;
    dc:title "New York" ;
-   dcterms:isPartOf &lt;tag:govshare.info,2005:data/us&gt; ;
-   geo:lat "42.155127" ;
-   geo:long "-75.164667" ;
-   census:population "18976457" ;
-   census:households "7679307" ;
+   dcterms:isPartOf &lt;http://www.rdfabout.com/rdf/usgov/geo/us&gt; ;
+   geo:lat 42.155127 ;
+   geo:long -75.164667 ;
+   census:population 18976457 ;
+   census:households 7679307 ;
    census:landArea "122283145776 m^2" ;
-   census:waterArea "19016249880 m^2" .
-</pre>
+   census:waterArea "19016249880 m^2" ;
+   census:details &lt;http://www.rdfabout.com/rdf/usgov/geo/us/ny/censustables&gt; . </pre>
 
 <div class="p">You may notice the landArea and waterArea values are given in a strange half-number/half-unit literal value.  I didn't know what to do since there isn't much consensus on how to indicate the units of physical quantities in RDF.  (See the thread "ontology for units of measurement and/or physical quantities" at <a href="http://lists.w3.org/Archives/Public/semantic-web/2006Sep/0053.html">the semantic-web mail list archives</a> and <a href="http://lists.w3.org/Archives/Public/semantic-web/2006Oct/0064.html">my own suggestion</a> that came later on.)</div>
 
-<ul>
-	<li><a href="http://www.govtrack.us/data/rdf/census.tgz">census.tgz</a>: Basic geographic data for the U.S., the states, counties, cities, ZCTAs, and congressional districts.  3.8 MB; 847,089 triples in N3 format.</li>
-</ul>
-
-
+<div class="p">A link to download the geographic data set (about 1 million triples) 
+is at
+the start of this document.</div>
 
 <h4>Population Tables</h4>
 
-<div class="p">The tables-within-tables data was by far much more difficult to get into N3 than the geographic data, which is just a flat table with a few fields per region.  The "summary files" (as they're called) come from <a href="http://www.census.gov/support/SF1ASCII.html">here</a> (documentation is there too).  For instance, the file SF1_all_0Final_National.zip (one gigabyte) contains about one-third of the census data.  In that zip file are zip files for each state, and in that are comma-delimited text files with several hundred fields per file.</div> 
+<div class="p">The tables-within-tables population data came next. There are two
+sets of this data. The first set is the "100 Percent" data which is data for
+questions asked of every individual in the United States.  The second data set is 
+the Sample data, which is data for questions asked of about one-sixth of the 
+population. The two data sets overlap in questions, and so there are two values
+for some statistics, one as determined by the 100 Percent data and one from
+the Sample data, and this forced the use of two separate namespaces for the
+statistics, "100pct" and "samp".</div>
 
-<div class="p">The comma-delimited files are described in a set of metadata files for the SAS statistics program.  Those files list the order of the fields within the data files and give each field a short description.  In addition, whitespace indentations in the descriptions, which presumably are ignored by SAS, were crucial for establishing the hierarchical nature of the field.</div>
+<div class="p">This data was by far much more difficult to get into N3 than the 
+geographic data, which is just a flat table with a few fields per region.  The "summary files" 
+(as they're called) come from <a href="http://www.census.gov/support/SF1ASCII.html">here</a> (documentation is there too).  For instance, the file SF1_all_0Final_National.zip (one gigabyte) contains about one-third of the census data.  In that zip file are zip files for each state, and in that are comma-delimited text files with several hundred fields per file.
+The comma-delimited files are described in a set of metadata files for the SAS statistics program.  Those 
+files list the order of the fields within the data files and give each field a short description.  In addition, whitespace indentations in the descriptions, which presumably are ignored by SAS, were crucial for establishing the hierarchical nature of the field.</div>
 
+<!--
 <div class="p">I use the SAS table layout files to create an N3 template for each region which is filled in with the URI of the region and the some 11,000 values per region.  The SAS file looks like this, with each line representing a field in the data file:</div>
 
 <pre class="code">
@@ -256,17 +289,23 @@ P002005='      Rural'
 P003001='Total:'
 P003002='      Population of one race:'
 P003003='        White alone'
-P003004='        Black or African American alone'
-</pre>
+P003004='        Black or African American alone'</pre>
+-->
+
+<div class="p">I used a Perl script to convert the data into N3. The script runs 
+for about an hour and a half (on modern hardware) and yields 1 billion triples. To 
+get the triples yourself, you will have to download my perl script, a patch file, 
+and Census data files, all linked at the start of this document. The 
+resulting N3 files are just too big (2.4GB) for me to provide as a download.</div>
 
 <div class="p">The beginning of the output for the United States looks like this:</div>
 
 <pre class="code">
 @prefix rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt; .
 @prefix dc: &lt;http://purl.org/dc/elements/1.1/&gt; .
-@prefix : &lt;tag:govshare.info,2005:rdf/census/details/&gt; .
+@prefix : &lt;tag:govshare.info,2005:rdf/census/details/100pct&gt; .
 
-&lt;tag:govshare.info,2005:data/us&gt;
+&lt;http://www.rdfabout.com/rdf/usgov/geo/us/censustables&gt;
   :totalPopulation 281421906 ;     # P001001
   :totalPopulation [
      dc:title "URBAN AND RURAL (P002001)";
@@ -286,57 +325,187 @@ P003004='        Black or African American alone'
         :whiteAlone 211460626 ;     # P003003
         :blackOrAfricanAmericanAlone 34658190 ;     # P003004
         :americanIndianAndAlaskaNativeAlone 2475956 ;   # P003005
-  ...
-</pre>
-
-<ul>
-<li>To get the 710M triples for this data, you'll have to download the raw Census files and my script, because it's too big for me
-to provide as a download myself. See the top of this page for the links.</li>
-</ul>
+  ...</pre>
 
 <h3>Overall Statistics</h3>
 
-<div class="p">The conversion process to Notation 3 yielded a total of ____ triples.</div>
+<div class="p">The conversion process to Notation 3 yielded a total of 
+1,002,848,918 triples. 1,016,219 triples of that were for the geographic data.
+The remaining were for the detailed population statistics. Regions covered
+include the U.S., states, counties, towns, Census data places ("villages"),
+ZCTAs (roughly ZIP Codes), and current congressional districts (2007-08).
+Also included are <code>owl:sameAs</code> links between geographic entities
+defined here and some defined in the <a href="http://www.geonames.org/">Geonames</a> data set.</div>
 
-<div class="p">847,089 triples were for the geographic data.</div>
+<a name="loading"/>
+<h2>Loading the Data into a Triple Store and Exposing it to the World</h2>
 
-<div class="p">716,779,251 triples were for the detailed population data: 
-	716 million for the country, states, counties, towns, and villages;
-	372,356,694 for ZCTAs;
-	5 million for congressional districts.</div>
-
-
-<h2>Loading the Data into a Triple Store</h2>
+<h3>Loading the Data</h3>
 
 <div class="p">I used my own <a href="http://razor.occams.info/code/semweb">SemWeb Library for C#</a> to 
 load the triples into a MySQL database.  
-Loading it took ____ (2 days and 6 hours to load the 
-triples with several indexes turned off and then ___ hours to build 
-indexes over the table of statements, which overall is about ___ 
-statements per second).  The database is ___ GB large (14GB data and
-____ for indexes). Within my library there is a 
+Loading it took 39 hours on a 2.13 GHz Core 2 Duo (~7,000 statements per second).  The database is 85 GB 
+large (~90 bytes per statement).</div>
+
+<div class="p">Within my library there is a 
 command-line tool for loading data into a database. I used this to load 
 the geographic data:</div>
 
 <pre class="code">
-mono rdfstorage.exe -in n3 \
-	-out "mysql:censusgeo:Database=rdf;User name=govtrack" --clear  \
-   states.n3 counties.n3 towns.n3 villages.n3 \
-   congressional_districts_109.n3 congressional_districts_110.n3
-</pre>
+export SEMWEB_MYSQL_IMPORT_MODE=LOCK 
 
-<div class="p">Because of the enormous size of the remaining data, those 
+mono rdfstorage.exe --clear -in n3 \
+    -out "mysql:censusgeo:Database=rdf;User name=rdf" \
+    geo-* link-*</pre>
+
+<div class="p">Because of the enormous size of the remaining data, the detailed data
 triples were in GZip'ed N3 files, and so one has to be 
 a little bit more creative to load that into a database without 
 uncompressing them first:</div>
 
 <pre class="code">
-cat sumfile*.n3.gz | gunzip | \
-	mono rdfstorage.exe - -in n3 --clear \
-		-out "mysql:censustables:Database=rdf;User name=govtrack"
-</pre>
+export SEMWEB_MYSQL_IMPORT_MODE=DISABLEKEYS
 
-<div class="p">[note about SemWeb's MySQL table structure</div>
+cat sumfile* cong* | gunzip | cat -- schema.n3 - | \
+    nice mono rdfstorage.exe
+        -out "mysql:censustables:Database=rdf;User name=rdf" \
+        -in n3 -</pre>
+
+<div class="p">The library creates three MySQL tables to store the data.
+The first table has columns Subject, Predicate, and Object, each an integer
+key representing the resource. Two other tables map integers to URIs, for
+named entities, and integers to values and datatypes for literals.
+MySQL indexes are created over the columns in several ways to support
+different types of queries.</div>
+
+<h3>Exposing the Data with SPARQL</h3>
+
+<div class="p">Once the data is in a triple store, exposing the data via SPARQL is
+the best way to access it. SPARQL allows one to run all sorts of queries 
+against the data set. We could use it, for instance, to get a list of all
+of the counties in New York sorted by the median income in the county:</div>
+
+<pre class="code">
+SELECT ?name ?medianincome WHERE {
+  ?county dcterms:isPartOf &lt;http://www.rdfabout.com/rdf/usgov/geo/us/ny> ;
+  rdf:type usgov:County ;
+  dc:title ?name .
+  ?county census:details [
+    census2:population15YearsAndOverWithIncomeIn1999 [ 
+      census2:medianIncomeIn1999 ?medianincome
+    ]
+  ] .
+} ORDER BY ?medianincome</pre>
+
+<div class="p">Another example would be to find all states in the
+United States with more students living in dorms than prison inmates:</div>
+
+<pre class="code">
+SELECT ?name ?prisoners ?students WHERE {
+  ?state rdf:type usgov:State ;
+  dc:title ?name .
+  ?state census:details [
+    census1:populationInGroupQuarters [
+      census1:institutionalizedPopulation [
+        census1:correctionalInstitutions ?prisoners
+      ] ;
+      census1:noninstitutionalizedPopulation [
+       census1:collegeDormitories__includesCollegeQuartersOffCampus ?students
+      ]
+    ]
+  ] .
+  FILTER(?students > ?prisoners) .
+}</pre>
+
+<div class="p">You can <a href="sparql.xpd">try out queries 
+here</a>. That page has the full query examples with PREFIXes and some additional suggestions for querying the data.</div>
+
+<div class="p">Again, I used my own library to set up a SPARQL end-point,
+since I have included in it an ASP.NET HTTP protocol handler that
+can plug into ASP.NET to provide a SPARQL end-point. I run it under
+<a href="http://www.mono-project.com">Mono</a>'s mod_mono under Apache
+but in principle it should work with IIS on Windows too.
+Getting that going is very straight-forward, at least once you have mod_mono
+working. First, instruct Apache
+that a certain location will be handled by the ASP.NET runtime by
+editing the server or vhost configuration and adding:</div>
+
+<pre class="code">
+&lt;Location /sparql>
+    SetHandler mono
+&lt;/Location></pre>
+
+<div class="p">(I believe you could also do something similar with a
+<code>.htaccess</code> file in a "sparql" directory.) Then, at the
+root-level of the website, in the <code>web.config</code> file, add:</div>
+
+<pre class="code">
+&lt;configuration>
+    &lt;configSections>
+        &lt;section name="sparqlSources" type="System.Configuration.NameValueSectionHandler,System"/>
+    &lt;/configSections>
+
+    &lt;system.web>
+        &lt;httpHandlers>
+            &lt;add verb="*" path="sparql"
+                type="SemWeb.Query.SparqlProtocolServerHandler, SemWeb.Sparql" />
+        &lt;httpHandlers>
+    &lt;/system.web>
+
+    &lt;sparqlSources>
+        &lt;add key="/sparql" value="noreuse,mysql:censusgeo:Database=rdf;Server=localhost;User Id=rdf
+                                          mysql:censustables:Database=rdf;Server=localhost;User Id=rdf"/>
+    &lt;/sparqlSources>
+&lt;/configuration></pre>
+
+<div class="p">and place the DLLs from the library in the <code>bin</code>
+directory of the website.</div>
+
+<div class="p">This creates a SPARQL end-point at 
+http://www.rdfabout.com/sparql.</div>
+
+<h3>Dereferencing URIs and Linked Data</h3>
+
+<div class="p">Current Semantic Web best practices are to mint URIs
+for entities that are dereferencable, that is, <code>http:</code> URIs
+that you could plug into a web browser and get something back. For
+reasons beyond this scope of this web page, the practice is to have
+a web server reply with a 303 "see other" status when dereferencing RDF
+URIs, sending the user to a different page which actually provides some
+RDF information (usually RDF/XML) about the resource in question.
+(For more, see <a href="http://sites.wiwiss.fu-berlin.de/suhl/bizer/pub/LinkedDataTutorial/">How
+to Publish Linked Data on the Web</a>.)</div>
+
+<div class="p">Providing the redirect from the URIs to some other
+page describing them is easy enough with Apache. But what page should
+describe them, and how should those pages be created? With a SPARQL
+end-point already set up, an easy solution is to use URLs for SPARQL
+DESCRIBE queries as the targets of the redirects.</div>
+
+<div class="p">I've thus included the following in my <code>.htaccess</code>
+file at the root of my website. It redirects URLs in a certain subdirectory
+to the SPARQL end-point with a DESCRIBE query on the URL originally accessed.
+Note that the angled brackets in the query are URI-escaped, and that I assume
+no special URI characters like # and &amp; are present in URIs, or a different
+redirecting method would have to be used so that URIs could be properly escaped.</div>
+
+<pre class="code">RedirectMatch 303 (/rdf/usgov/geo/.*) http://rdfabout.com/sparql?query=DESCRIBE+%3Chttp://www.rdfabout.com$1%3E</pre>
+
+<div class="p">You could try it out by visiting
+<a href="http://www.rdfabout.com/rdf/usgov/geo/us">http://www.rdfabout.com/rdf/usgov/geo/us</a>,
+the URI I minted for the United States, right in your browser, or pasting that URI
+into any of the <a href="http://esw.w3.org/topic/LinkedData">client-side tools
+on the LinkedData ESW wiki page</a>.</div>
+
+<h3>Providing a Sitemap</h3>
+
+<div class="p">Following the new <a href="http://sw.deri.org/2007/07/sitemapextension/">Semantic Web 
+Crawling:
+a Sitemap Extension</a> guide, and the <a href="http://www.sitemaps.org/protocol.php#submit_robots">robots.txt
+extension for finding sitemaps</a>, I have created a sitemap.xml file for the data
+stored on this website which you can take a look at <a href="/sitemap.xml">here</a>,
+and it is referenced in the <a href="/robots.txt">robots.txt</a> file for the website.</div>
+
 
 	</body>
 </html>
