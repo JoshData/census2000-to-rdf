@@ -18,7 +18,7 @@ if (1) {
 } else {
 	# use Virtuoso data source
 	$datasource = 'http://dbpedia2.openlinksw.com:8890/sparql/';
-	$SPARQL_FROM = 'FROM <tag:govshare.info,2005:rdf/census/>';
+	$SPARQL_FROM = 'FROM <http://www.rdfabout.com/rdf/schema/census/>';
 }
 
 require "sparql.pl";
@@ -40,9 +40,9 @@ print LINKS "<http://www.rdfabout.com/rdf/usgov/geo/us> $owlsameas <http://www.g
 @states = SparqlQuery($datasource, <<EOF);
 SELECT ?entity ?uspscode ?fipscode $SPARQL_FROM
 WHERE {
-	?entity $rdftype <tag:govshare.info,2005:rdf/usgovt/State> .
-	?entity <tag:govshare.info,2005:rdf/usgovt/uspsStateCode> ?uspscode .
-	?entity <tag:govshare.info,2005:rdf/usgovt/fipsStateCode> ?fipscode .
+	?entity $rdftype <http://www.rdfabout.com/rdf/schema/usgovt/State> .
+	?entity <http://www.rdfabout.com/rdf/schema/usgovt/uspsStateCode> ?uspscode .
+	?entity <http://www.rdfabout.com/rdf/schema/usgovt/fipsStateCode> ?fipscode .
 }
 EOF
 print STDERR "Fetched " . scalar(@states) . " states.\n";
@@ -58,9 +58,9 @@ foreach my $stateuri (values(%StateUri)) {
 	my @counties = SparqlQuery($datasource, <<EOF);
 SELECT ?entity ?code $SPARQL_FROM
 WHERE {
-	?entity $rdftype <tag:govshare.info,2005:rdf/usgovt/County> .
+	?entity $rdftype <http://www.rdfabout.com/rdf/schema/usgovt/County> .
 	?entity $dcispartof $stateuri .
-	?entity <tag:govshare.info,2005:rdf/usgovt/fipsStateCountyCode> ?code .
+	?entity <http://www.rdfabout.com/rdf/schema/usgovt/fipsStateCountyCode> ?code .
 }
 LIMIT 4000
 EOF
@@ -116,7 +116,7 @@ while (!eof(GEONAMES)) {
 			my @Towns = SparqlQuery($datasource, <<EOF);
 SELECT ?entity ?name $SPARQL_FROM
 WHERE {
-	# ?entity $rdftype <tag:govshare.info,2005:rdf/usgovt/$class> .
+	# ?entity $rdftype <http://www.rdfabout.com/rdf/schema/usgovt/$class> .
 	?entity $dcispartof $countyuri .
 	?entity $dctitle ?name .
 }
@@ -125,7 +125,7 @@ EOF
 			my @Villages = SparqlQuery($datasource, <<EOF);
 SELECT ?entity ?name $SPARQL_FROM
 WHERE {
-	# ?entity $rdftype <tag:govshare.info,2005:rdf/usgovt/$class> .
+	# ?entity $rdftype <http://www.rdfabout.com/rdf/schema/usgovt/$class> .
 	?entity $dcispartof [ $dcispartof $countyuri ] .
 	?entity $dctitle ?name .
 }
