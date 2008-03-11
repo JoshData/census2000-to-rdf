@@ -1,7 +1,7 @@
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use LWP::UserAgent;
-use HTTP::Request::Common qw(POST);
+use HTTP::Request::Common qw(GET POST);
 
 my $XMLPARSER = XML::LibXML->new();
 my $UA = LWP::UserAgent->new();
@@ -26,6 +26,8 @@ sub SparqlQuery {
 		my %bindings;
 		foreach my $binding ($xc->findnodes('sparql:binding', $result)) {
 			$bindings{$binding->getAttribute('name')} = $xc->findvalue('node()[name()="uri" or name() = "literal"]', $binding);
+			$bindings{$binding->getAttribute('name') . '__valuetype'} = $xc->findvalue('name(*)', $binding);
+			$bindings{$binding->getAttribute('name') . '__datatype'} = $xc->findnodes('*', $binding)->pop()->getAttribute('datatype');
 		}
 		push @ret, { %bindings };
 	}

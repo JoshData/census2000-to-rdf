@@ -486,7 +486,7 @@ DESCRIBE queries as the targets of the redirects.</div>
 file at the root of my website. It redirects URLs in a certain subdirectory
 to the SPARQL end-point with a DESCRIBE query on the URL originally accessed.
 Note that the angled brackets in the query are URI-escaped, and that I assume
-no special URI characters like # and &amp; are present in URIs, or a different
+no special URI characters like %, #, and &amp; are present in URIs, or a different
 redirecting method would have to be used so that URIs could be properly escaped.</div>
 
 <pre class="code">RedirectMatch 303 (/rdf/usgov/geo/.*) http://rdfabout.com/sparql?query=DESCRIBE+%3Chttp://www.rdfabout.com$1%3E</pre>
@@ -496,6 +496,11 @@ redirecting method would have to be used so that URIs could be properly escaped.
 the URI I minted for the United States, right in your browser, or pasting that URI
 into any of the <a href="http://esw.w3.org/topic/LinkedData">client-side tools
 on the LinkedData ESW wiki page</a>.</div>
+
+<p>Update: A robust solution for redirects, for URIs that may include
+special escaped characters, is here: <a href="htaccess.txt">.htaccess</a>.
+It employs a redirect for all URLs in the <tt>/rdf</tt> path space for
+the virtual host. Note that this requires that a line be added to <tt>httpd.conf</tt>.</p>
 
 <h3>Providing a Sitemap</h3>
 
