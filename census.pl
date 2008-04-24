@@ -16,7 +16,7 @@
 #
 #   usgeo_uf1.txt                   (191MB)
 #
-# The second method generates roughly 500 million triples of
+# The second method generates roughly 1 billion triples of
 # detailed Census statistics for all of those regions.
 # To do that, you must get:
 #
@@ -41,31 +41,34 @@
 # When processing the Summary Files, many per-race tables are left
 # out in order to keep the size of the resulting data managable.
 #
-# The files come from the Census website:
-#   http://www2.census.gov/census_2000/datasets/
+# You will need to have the Perl module Unicode::MapUTF8 installed.
+#
+# The files referenced above come from the Census website:
+#   ftp://ftp2.census.gov/census_2000/datasets/
 #
 # Get the usgeo_uf1.txt file from:
-#   http://www2.census.gov/census_2000/datasets/Summary_File_1/0Final_National/usgeo_uf1.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_1/0Final_National/usgeo_uf1.zip
 #
 # And if you want to process the Summary Files, then also get:
-#   http://www2.census.gov/census_2000/datasets/Summary_File_1/0Final_National/all_0Final_National.zip
-#   http://www2.census.gov/census_2000/datasets/Summary_File_3/0_National/usgeo_uf3.zip
-#   http://www2.census.gov/census_2000/datasets/Summary_File_3/0_National/all_0_National-part1.zip
-#   http://www2.census.gov/census_2000/datasets/Summary_File_3/0_National/all_0_National-part2.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_1/0Final_National/all_0Final_National.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_3/0_National/usgeo_uf3.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_3/0_National/all_0_National-part1.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_3/0_National/all_0_National-part2.zip
 # But rename the three big files by putting "SF1_" or "SF3_" in front of them
 # as appropriate.
 #
 # And if you want to generate triples for congressional districts:
-#   http://www2.census.gov/census_2000/datasets/Summary_File_Extracts/109_Congressional_Districts/109_CD_HundredPercent/United_States/sl500-in-sl010-us_h09.zip
-#   http://www2.census.gov/census_2000/datasets/Summary_File_Extracts/109_Congressional_Districts/109_CD_Sample/United_States/sl500-in-sl010-us_s09.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_Extracts/109_Congressional_Districts/109_CD_HundredPercent/United_States/sl500-in-sl010-us_h09.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_Extracts/109_Congressional_Districts/109_CD_Sample/United_States/sl500-in-sl010-us_s09.zip
 #   and/or
-#   http://www2.census.gov/census_2000/datasets/Summary_File_Extracts/110_Congressional_Districts/110_CD_HundredPercent/United_States/sl500-in-sl010-us_h10.zip
-#   http://www2.census.gov/census_2000/datasets/Summary_File_Extracts/110_Congressional_Districts/110_CD_Sample/United_States/sl500-in-sl010-us_s10.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_Extracts/110_Congressional_Districts/110_CD_HundredPercent/United_States/sl500-in-sl010-us_h10.zip
+#   ftp://ftp2.census.gov/census_2000/datasets/Summary_File_Extracts/110_Congressional_Districts/110_CD_Sample/United_States/sl500-in-sl010-us_s10.zip
 #
 # You will also need the SAS layout files for processing the Summary Files
 # and the congressional district files.  Grab SF1SAS.zip and SF3SAS.zip
-# from in here:
-#   http://www.census.gov/support/2000/
+# from:
+#   http://www.census.gov/support/2000/SF1/SF1SAS.zip
+#   http://www.census.gov/support/2000/SF3/SF3SAS.zip
 # And then create the following directory structure:
 #   ./table_layouts/sf1/ (extract files from SF1SAS.zip here)
 #   ./table_layouts/sf3/ (extract files from SF3SAS.zip here)
@@ -287,7 +290,14 @@ EOF
 			$parent = $URI{COUNTYSUB};
 			$uri = "$URI{COUNTYSUB}/" . MakePlaceURI($info{NAME});
 			$isa = "usgovt:Village";
-			if ($POP{COUNTYSUB} == $info{POP100}) { next; } # this region is the same as its parent region
+
+			# This region is the same as its parent region? No need to
+			# duplicate an entity, but we do want to record the FIPS CDP code
+			# on the COUNTYSUB entity.
+			if ($POP{COUNTYSUB} == $info{POP100}) {
+				print $file "<$parent> usgovt:fipsStateCDPCode \"$info{STATE}:$info{PLACE}\" .\n";
+				next;
+			}
 
 		} elsif ($info{SUMLEV} eq "500" && defined($congress)) { # congressional district
 			$file = "DISTS";
@@ -326,6 +336,8 @@ EOF
 		print $file "	usgovt:uspsStateCode \"$info{STATEUSPS}\" ;\n" if ($file2 eq "STATE");
 		print $file "	usgovt:fipsCountyCode \"$info{COUNTY}\" ;\n" if ($file2 eq "COUNTY");
 		print $file "	usgovt:fipsStateCountyCode \"$info{STATE}:$info{COUNTY}\" ;\n" if ($file2 eq "COUNTY");
+		print $file "	usgovt:fipsStateCountySubCode \"$info{STATE}:$info{COUSUB}\" ;\n" if ($file2 eq "COUNTYSUB");
+		print $file "	usgovt:fipsStateCDPCode \"$info{STATE}:$info{PLACE}\" ;\n" if ($file2 eq "COUNTYSUBPLACE");
 		print $file "	dc:title \"$info{NAME}\" ;\n";
 		print $file "	dcterms:isPartOf <$parent> ;\n" if ($file2 ne "US");
 		print $file "	geo:lat $info{INTPLAT} ;\n";
@@ -358,9 +370,6 @@ EOF
 sub NicePlaceName {
 	my $name = shift;
 	$name = to_utf8({ -string => $name, -charset => 'WinLatin1' });
-	$name =~ s/ county$//g;
-	$name =~ s/ town$//g;
-	$name =~ s/ city$//g;
 	$name =~ s/ CCD$//g;
 	$name =~ s/ CDP$//g;
 	return $name;
